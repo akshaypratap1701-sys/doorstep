@@ -1,0 +1,13 @@
+order_id,customer_name,phone,language,item,size,amount,payment,address,city,pincode,awb,past_orders,demo_buyer_note
+SJ-20931,Sunita Meena,98290xxx12,Hindi,"Bandhej kurta set, maroon",L,1299,COD,12 Vaishali Nagar,Ajmer,305004,149022100381,3,"Out tomorrow; wants Thursday delivery and a call before the rider comes"
+SJ-20934,Ravi Sharma,94140xxx87,Hindi,Leheriya dupatta,-,549,COD,Near bus stand,Kota,324007,149022100397,1,"Full address is H.No 14, behind SBI branch, Station Road; tomorrow is fine"
+SJ-20940,Neha Joshi,99280xxx45,Hinglish,Block-print anarkali,M,1899,COD,44 Shastri Nagar,Bhilwara,311001,149022100412,5,"Annoyed: was home all day and nobody came or called; still wants it tomorrow"
+SJ-20946,Arjun Singh,97830xxx09,Hinglish,"Men's Nehru jacket, indigo",40,1499,COD,7 Ratanada Road,Jodhpur,342011,149022100428,1,"Doesn't want it anymore, bought one locally"
+SJ-20951,Pooja Agarwal,98870xxx33,English,Gota-work saree,-,2399,COD,B-18 Hiran Magri Sector 4,Udaipur,313002,149022100433,2,"Didn't have cash; would rather pay by UPI now and get it tomorrow"
+SJ-20955,Imran Qureshi,99500xxx71,Hinglish,"Cotton kurta, white",XL,899,COD,21 Rani Bazar,Bikaner,334001,149022100449,4,"Runs a shop; deliver at 21 Rani Bazar after 11am tomorrow"
+SJ-20958,Kavita Rathore,94600xxx28,Hindi,Kalamkari palazzo set,M,1149,COD,3 Scheme No. 2,Alwar,301001,149022100454,2,"Refused because the packet looked torn; upset, wants to talk to someone about a fresh piece"
+SJ-20962,Deepak Yadav,97720xxx64,Hindi,Printed cotton bedsheet,Double,799,COD,"Ward 18, Piprali Road",Sikar,332001,149022100460,1,"Phone was off; very short replies; tomorrow morning is fine"
+SJ-20967,Anjali Gupta,98290xxx90,English,"Chanderi kurti, sage",S,1349,Prepaid,"Tower B, Mahima Panorama, Jagatpura",Jaipur,302017,149022100475,6,"Flat number is Flat 302; tomorrow evening is fine"
+SJ-20971,Mohit Kumawat,96360xxx15,Hinglish,"Kids' lehenga, yellow",6-7Y,1099,COD,56 Pushkar Road,Ajmer,305001,149022100481,2,"Travelling, back on Sunday; deliver Sunday or Monday"
+SJ-20975,Farah Khan,98281xxx40,English,Mirror-work cushion covers,Set of 5,749,COD,9 Civil Lines,Jaipur,302006,149022100496,3,"Happy to take it tomorrow afternoon"
+SJ-20979,Lokesh Saini,94131xxx58,Hindi,"Men's cotton kurta, sky blue",L,999,COD,Behind Shiv Mandir,Tonk,304001,149022100502,1,"Address vague; house is 2nd lane, house no 31, behind Shiv Mandir, Tonk; wants delivery day after tomorrow"

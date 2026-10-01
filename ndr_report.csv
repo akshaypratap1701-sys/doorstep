@@ -1,0 +1,13 @@
+awb,attempt,reason,rider_remark,attempt_time
+149022100381,1,Customer not available,Door locked,13:42
+149022100397,1,Address incomplete,"No house number, phone not picked",15:10
+149022100412,1,Customer not available,Customer not at home,16:55
+149022100428,1,Customer refused,Customer said not needed,12:20
+149022100433,1,Cash not ready,Customer asked to come later,11:05
+149022100449,2,Customer not available,Shop closed,14:30
+149022100454,1,Customer refused,Refused at door,17:15
+149022100460,1,Consignee unreachable,Phone switched off,10:48
+149022100475,1,Address incomplete,Flat number missing,18:02
+149022100481,1,Customer requested future delivery,Asked for delivery after Sunday,12:58
+149022100496,1,Customer not available,No one answered,15:44
+149022100502,1,Address incomplete,Could not locate house,16:21

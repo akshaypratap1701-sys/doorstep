@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Doorstep: an AI agent that resolves failed deliveries with buyers over WhatsApp and calls.">
+<title>Doorstep Seller Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: SaaS seller desk. Auth split screen -> onboarding upload -> app shell (sidebar + views: Overview, Failed deliveries, Agent settings, Data sources). */
+:root{
+  --bg:#FFFFFF; --canvas:#F7F6F4; --surface:#F3F2EF; --surface-2:#EAE8E4; --line:#E3E0DB;
+  --ink:#17161A; --ink-2:#4E4B52; --muted:#7D7982;
+  --accent:#C2410C; --accent-strong:#E0522D; --accent-soft:#FDEEE7;
+  --good:#157A3C; --good-soft:#E5F3EA; --warn:#935A04; --warn-soft:#FBF0DD; --info:#1F4FC4; --info-soft:#E7EDFB; --bad:#B42318; --bad-soft:#FDECEA;
+  --side:#17161A; --side-ink:#F4F2EE; --side-muted:#A29EA6;
+  --bub-a:#EFEDE9; --bub-b:#17161A; --bub-b-ink:#FFFFFF;
+  --display:"Bricolage Grotesque","Arial Narrow",Arial,sans-serif; --body:"Instrument Sans","Segoe UI",Roboto,Arial,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141316; --canvas:#101012; --surface:#1C1B1F; --surface-2:#252428; --line:#2F2D33; --ink:#F4F2EE; --ink-2:#BDB9C2; --muted:#8E8A94;
+  --accent:#FF8A5C; --accent-strong:#E0522D; --accent-soft:#3A2016;
+  --good:#5BD68A; --good-soft:#16301F; --warn:#F2B84B; --warn-soft:#33270F; --info:#97B4FF; --info-soft:#1B2440; --bad:#F59A92; --bad-soft:#3A1A17;
+  --side:#0B0B0D; --side-ink:#F4F2EE; --side-muted:#8E8A94;
+  --bub-a:#252428; --bub-b:#F4F2EE; --bub-b-ink:#141316; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141316; --canvas:#101012; --surface:#1C1B1F; --surface-2:#252428; --line:#2F2D33; --ink:#F4F2EE; --ink-2:#BDB9C2; --muted:#8E8A94;
+  --accent:#FF8A5C; --accent-strong:#E0522D; --accent-soft:#3A2016;
+  --good:#5BD68A; --good-soft:#16301F; --warn:#F2B84B; --warn-soft:#33270F; --info:#97B4FF; --info-soft:#1B2440; --bad:#F59A92; --bad-soft:#3A1A17;
+  --side:#0B0B0D; --side-ink:#F4F2EE; --side-muted:#8E8A94;
+  --bub-a:#252428; --bub-b:#F4F2EE; --bub-b-ink:#141316; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--canvas);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.muted{color:var(--muted)} .fine{font-size:13px;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12.5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent-strong);border-color:var(--accent-strong);color:#FFFFFF}
+.btn.primary:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+.btn.ghost:hover:not(:disabled){border-color:var(--line)}
+.btn.sm{font-size:13px;padding:6px 10px;border-radius:8px}
+.btn.block{width:100%}
+:focus-visible{outline:2px solid var(--accent-strong);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.field input,.field select{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-width:0}
+.field .hint{font-size:12.5px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.chip.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.c-open{background:var(--surface-2);color:var(--ink-2)}.c-talking{background:var(--info-soft);color:var(--info)}.c-pay{background:var(--info-soft);color:var(--info)}
+.c-rebooked{background:var(--good-soft);color:var(--good)}.c-return{background:var(--bad-soft);color:var(--bad)}.c-human{background:var(--warn-soft);color:var(--warn)}
+.c-soon{background:var(--surface-2);color:var(--muted)}
+.tag{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--ink-2);white-space:nowrap}
+.tag.bad{border-color:var(--bad);color:var(--bad)}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:14px}
+.note{font-size:13.5px;padding:10px 12px;border-radius:10px;background:var(--surface);color:var(--ink-2)}
+.note.err{background:var(--bad-soft);color:var(--bad)}
+.note.ok{background:var(--good-soft);color:var(--good)}
+.note.info{background:var(--info-soft);color:var(--info)}
+[hidden]{display:none!important}
+/* ---------- loading ---------- */
+.center{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+/* ---------- auth ---------- */
+.auth{min-height:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:900px){.auth{grid-template-columns:1fr}}
+.auth-l{background:var(--side);color:var(--side-ink);padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;gap:36px}
+@media (max-width:900px){.auth-l{padding:28px 20px}}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:-.01em}
+.logo i{width:28px;height:28px;border-radius:8px;background:var(--accent-strong);display:inline-flex;align-items:center;justify-content:center}
+.logo i::after{content:"";width:12px;height:12px;border:3px solid #FFFFFF;border-top-color:transparent;border-radius:50%}
+.auth-l h1{font-size:clamp(30px,4vw,48px);font-weight:800;max-width:14ch}
+.auth-l .sub{color:var(--side-muted);max-width:44ch;font-size:16px}
+.proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:520px}
+.proof div{border-top:2px solid var(--accent-strong);padding-top:10px;font-size:13.5px;color:var(--side-muted)}
+.proof b{display:block;color:var(--side-ink);font-family:var(--display);font-size:17px;margin-bottom:2px}
+.auth-r{padding:40px 24px;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.auth-box{width:100%;max-width:460px;display:flex;flex-direction:column;gap:18px}
+.seg{display:flex;background:var(--surface);border-radius:10px;padding:4px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:7px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--bg);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.idrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface);font-size:13.5px}
+.idrow img{width:30px;height:30px;border-radius:50%}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2)}
+.check input{margin-top:3px}
+.storecard{display:flex;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--line);border-radius:14px}
+/* ---------- onboarding ---------- */
+.onb{max-width:1040px;margin:0 auto;padding:28px 18px 48px;display:flex;flex-direction:column;gap:22px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--muted);padding:6px 12px 6px 6px;border-radius:999px;background:var(--surface)}
+.step b{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);font-size:12px}
+.step.done{color:var(--good)} .step.done b{background:var(--good);color:#FFFFFF}
+.step.on{color:var(--ink)} .step.on b{background:var(--accent-strong);color:#FFFFFF}
+.uploads{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.uploads{grid-template-columns:1fr}}
+.up{padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px 14px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;cursor:pointer;background:var(--canvas)}
+.drop.over{border-color:var(--accent-strong);background:var(--accent-soft)}
+.drop.done{border-style:solid;border-color:var(--good);background:var(--good-soft)}
+.cols{display:flex;flex-wrap:wrap;gap:5px}
+.col-ok{background:var(--good-soft);color:var(--good)}.col-miss{background:var(--bad-soft);color:var(--bad)}.col-opt{background:var(--surface-2);color:var(--ink-2)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface);font-weight:600}
+tr:last-child td{border-bottom:0}
+.joinbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 18px}
+/* ---------- shell ---------- */
+.shell{min-height:100%;display:grid;grid-template-columns:232px minmax(0,1fr)}
+@media (max-width:900px){.shell{grid-template-columns:1fr}}
+.side{background:var(--side);color:var(--side-ink);padding:20px 14px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh}
+@media (max-width:900px){.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px}}
+.nav{display:flex;flex-direction:column;gap:2px}
+@media (max-width:900px){.nav{flex-direction:row;flex-wrap:wrap;order:3;width:100%}}
+.nav button{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:none;color:var(--side-muted);padding:9px 10px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;text-align:left}
+.nav button:hover{color:var(--side-ink)}
+.nav button[aria-current="page"]{background:rgba(255,255,255,.09);color:var(--side-ink)}
+.nav .n{font-size:11.5px;background:var(--accent-strong);color:#FFFFFF;border-radius:999px;padding:0 7px;font-variant-numeric:tabular-nums}
+.who{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--side-muted);border-top:1px solid rgba(255,255,255,.1);padding-top:14px}
+@media (max-width:900px){.who{margin:0 0 0 auto;border:0;padding:0;flex-direction:row;align-items:center}}
+.who b{color:var(--side-ink);font-weight:600;display:block}
+.who .btn{background:transparent;color:var(--side-muted);border-color:rgba(255,255,255,.18)}
+.main{padding:26px 28px 48px;display:flex;flex-direction:column;gap:20px;min-width:0}
+@media (max-width:640px){.main{padding:18px 16px 40px}}
+.phead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.phead h1{font-size:clamp(24px,3vw,32px);font-weight:800}
+.phead p{color:var(--ink-2);margin-top:4px;max-width:70ch}
+.banner{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border-radius:12px;background:var(--info-soft);color:var(--info);font-size:13.5px}
+/* overview */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:480px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:32px;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12.5px;color:var(--ink-2)}
+.kpi.lead{background:var(--ink);color:var(--bg);border-color:var(--ink)}.kpi.lead .l{color:var(--bg);opacity:.75}
+.two{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.two{grid-template-columns:1fr}}
+.pad{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.sect{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stack{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--surface-2);gap:2px}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend span::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--c)}
+.bigv{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.feedlist{display:flex;flex-direction:column}
+.fi{display:grid;grid-template-columns:74px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.fi:last-child{border-bottom:0}
+.fi time{font-family:var(--mono);font-size:11.5px;color:var(--muted);padding-top:2px}
+.needs{display:flex;flex-direction:column;gap:6px}
+.needs button{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:13.5px}
+.needs button:focus-visible{outline:2px solid var(--accent-strong)}
+/* cases */
+.cases{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1100px){.cases{grid-template-columns:1fr}}
+.listbox{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:12px;border-bottom:1px solid var(--line)}
+.filters button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.search{padding:0 12px 12px;border-bottom:1px solid var(--line)}
+.search input{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.rows{display:flex;flex-direction:column;max-height:640px;overflow-y:auto}
+.crow{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.crow:hover{background:var(--surface)}
+.crow[aria-current="true"]{background:var(--surface);box-shadow:inset 3px 0 0 var(--accent-strong)}
+.crow .t{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.crow .n{font-weight:600}
+.crow .d{font-size:12.5px;color:var(--ink-2)}
+.crow .r{font-size:12px;color:var(--muted)}
+.crow .fl{display:flex;gap:4px;flex-wrap:wrap}
+.detail{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.dhead{padding:16px 18px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px}
+.dhead h2{font-size:20px;font-weight:700}
+.dhead .amt{font-family:var(--display);font-weight:800;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.dhead .meta{font-size:13px;color:var(--ink-2)}
+.dhead .meta b{color:var(--ink);font-weight:600}
+.courier{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;background:var(--surface);border-radius:8px;padding:8px 10px;color:var(--ink-2)}
+.courier b{color:var(--ink);font-weight:600}
+.dbody{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0}
+@media (max-width:1300px){.dbody{grid-template-columns:1fr}}
+.conv{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+@media (max-width:1300px){.conv{border-right:0;border-bottom:1px solid var(--line)}}
+.testbar{font-size:12.5px;background:var(--warn-soft);color:var(--warn);padding:7px 14px}
+.feed{height:420px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--canvas)}
+.msg{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg .w{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;opacity:.7;margin-bottom:1px}
+.m-agent{align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m-buyer{align-self:flex-end;background:var(--bub-b);color:var(--bub-b-ink);border-bottom-right-radius:4px}
+.m-sys{align-self:center;font-size:12.5px;color:var(--ink-2);background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:5px 10px;text-align:center;max-width:92%}
+.typing{opacity:.7;font-style:italic}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:40ch;font-size:14px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.ctl{padding:12px 14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.compose{display:flex;gap:8px}
+.compose input{flex:1;min-width:0;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.acts{padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.call{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.call .h{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--surface);font-family:var(--mono);font-size:11.5px}
+.call .h b{color:var(--accent);font-weight:600}
+.call pre{margin:0;padding:8px 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink-2)}
+.call .res{border-top:1px dashed var(--line);color:var(--good)}
+.progress{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent-strong);transition:width .3s}
+/* settings / data */
+.setgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.setgrid{grid-template-columns:1fr}}
+.toggle{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle:last-child{border-bottom:0}
+.toggle .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.toggle .tx b{font-weight:600}
+.toggle .tx span{font-size:13px;color:var(--muted)}
+.sw{position:relative;width:42px;height:24px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+.sw i{position:absolute;inset:0;border-radius:999px;background:var(--surface-2);transition:background .15s}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.sw input:checked+i{background:var(--good)}
+.sw input:checked+i::after{transform:translateX(18px)}
+.sw input:focus-visible+i{outline:2px solid var(--accent-strong);outline-offset:2px}
+.sw input:disabled+i{opacity:.5}
+.srcs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:1000px){.srcs{grid-template-columns:1fr}}
+.src{padding:18px;display:flex;flex-direction:column;gap:12px}
+.src .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.src .ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;background:var(--surface-2)}
+.src.live{border-style:dashed}
+
+/* ---------- phone layout ---------- */
+.mback{display:none}
+.nav .ic{display:none}
+.nav .ns{display:none}
+@media (max-width:640px){
+  body{font-size:14.5px}
+  .auth-l{padding:22px 18px 26px;gap:16px}
+  .auth-l h1{font-size:28px}
+  .auth-l .sub{font-size:14.5px}
+  .proof{display:none}
+  .auth-r{padding:22px 16px 32px;align-items:flex-start}
+  .side{position:sticky;top:0;z-index:40;flex-direction:row;flex-wrap:nowrap;padding:10px 16px;gap:10px}
+  .side .logo{font-size:18px}.side .logo i{width:24px;height:24px}
+  .who{margin-left:auto;flex-direction:row;align-items:center;gap:10px;font-size:12px}
+  .who span{display:none}
+  .who b{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:60;flex-direction:row;justify-content:space-around;background:var(--side);padding:6px 6px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.08);width:auto;order:0}
+  .nav button{flex:1;flex-direction:column;justify-content:center;gap:2px;padding:6px 2px;font-size:11px;position:relative;text-align:center;align-items:center}
+  .nav button[aria-current="page"]{background:none;color:#FFFFFF}
+  .nav button[aria-current="page"] .ic{color:var(--accent-strong)}
+  .nav .ic{display:block;width:22px;height:22px}
+  .nav .nf{display:none}.nav .ns{display:inline}
+  .nav .n{position:absolute;top:0;left:calc(50% + 6px);font-size:10px;padding:0 5px}
+  .main{padding:16px 14px 96px;gap:14px}
+  .phead h1{font-size:23px}
+  .phead .row{width:100%}.phead .row .btn.primary{flex:1}
+  .kpi{padding:12px}.kpi .v{font-size:26px}
+  .bigv{font-size:34px}
+  .pad{padding:14px}
+  .cases:not(.m-detail) .detail{display:none}
+  .cases.m-detail .listbox{display:none}
+  .main:has(.cases.m-detail) > .phead{display:none}
+  .rows{max-height:none}
+  .mback{display:inline-flex;grid-column:1 / -1;justify-self:start;margin-bottom:4px}
+  .dhead{padding:12px 14px}
+  .dhead h2{font-size:17px}
+  .feed{height:auto;min-height:300px;max-height:none;padding:12px}
+  .msg{max-width:88%;font-size:14px}
+  .ctl{position:sticky;bottom:64px;background:var(--bg);z-index:5}
+  .testbar{font-size:11.5px;padding:6px 12px}
+  .banner{font-size:12.5px}
+  .onb{padding:18px 14px 40px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+</head>
+<body>
+<div id="app"><div class="center"><p class="muted">Loading your desk...</p></div></div>
+
+<script>
+/* ======================= sample files ======================= */
+const SAMPLE_ORDERS = `order_id,customer_name,phone,language,item,size,amount,payment,address,city,pincode,awb,past_orders,demo_buyer_note
+SJ-20931,Sunita Meena,98290xxx12,Hindi,"Bandhej kurta set, maroon",L,1299,COD,12 Vaishali Nagar,Ajmer,305004,149022100381,3,"Out tomorrow; wants Thursday delivery and a call before the rider comes"
+SJ-20934,Ravi Sharma,94140xxx87,Hindi,Leheriya dupatta,-,549,COD,Near bus stand,Kota,324007,149022100397,1,"Full address is H.No 14, behind SBI branch, Station Road; tomorrow is fine"
+SJ-20940,Neha Joshi,99280xxx45,Hinglish,Block-print anarkali,M,1899,COD,44 Shastri Nagar,Bhilwara,311001,149022100412,5,"Annoyed: was home all day and nobody came or called; still wants it tomorrow"
+SJ-20946,Arjun Singh,97830xxx09,Hinglish,"Men's Nehru jacket, indigo",40,1499,COD,7 Ratanada Road,Jodhpur,342011,149022100428,1,"Doesn't want it anymore, bought one locally"
+SJ-20951,Pooja Agarwal,98870xxx33,English,Gota-work saree,-,2399,COD,B-18 Hiran Magri Sector 4,Udaipur,313002,149022100433,2,"Didn't have cash; would rather pay by UPI now and get it tomorrow"
+SJ-20955,Imran Qureshi,99500xxx71,Hinglish,"Cotton kurta, white",XL,899,COD,21 Rani Bazar,Bikaner,334001,149022100449,4,"Runs a shop; deliver at 21 Rani Bazar after 11am tomorrow"
+SJ-20958,Kavita Rathore,94600xxx28,Hindi,Kalamkari palazzo set,M,1149,COD,3 Scheme No. 2,Alwar,301001,149022100454,2,"Refused because the packet looked torn; upset, wants to talk to someone about a fresh piece"
+SJ-20962,Deepak Yadav,97720xxx64,Hindi,Printed cotton bedsheet,Double,799,COD,"Ward 18, Piprali Road",Sikar,332001,149022100460,1,"Phone was off; very short replies; tomorrow morning is fine"
+SJ-20967,Anjali Gupta,98290xxx90,English,"Chanderi kurti, sage",S,1349,Prepaid,"Tower B, Mahima Panorama, Jagatpura",Jaipur,302017,149022100475,6,"Flat number is Flat 302; tomorrow evening is fine"
+SJ-20971,Mohit Kumawat,96360xxx15,Hinglish,"Kids' lehenga, yellow",6-7Y,1099,COD,56 Pushkar Road,Ajmer,305001,149022100481,2,"Travelling, back on Sunday; deliver Sunday or Monday"
+SJ-20975,Farah Khan,98281xxx40,English,Mirror-work cushion covers,Set of 5,749,COD,9 Civil Lines,Jaipur,302006,149022100496,3,"Happy to take it tomorrow afternoon"
+SJ-20979,Lokesh Saini,94131xxx58,Hindi,"Men's cotton kurta, sky blue",L,999,COD,Behind Shiv Mandir,Tonk,304001,149022100502,1,"Address vague; house is 2nd lane, house no 31, behind Shiv Mandir, Tonk; wants delivery day after tomorrow"`;
+const SAMPLE_NDR = `awb,attempt,reason,rider_remark,attempt_time
+149022100381,1,Customer not available,Door locked,13:42
+149022100397,1,Address incomplete,"No house number, phone not picked",15:10
+149022100412,1,Customer not available,Customer not at home,16:55
+149022100428,1,Customer refused,Customer said not needed,12:20
+149022100433,1,Cash not ready,Customer asked to come later,11:05
+149022100449,2,Customer not available,Shop closed,14:30
+149022100454,1,Customer refused,Refused at door,17:15
+149022100460,1,Consignee unreachable,Phone switched off,10:48
+149022100475,1,Address incomplete,Flat number missing,18:02
+149022100481,1,Customer requested future delivery,Asked for delivery after Sunday,12:58
+149022100496,1,Customer not available,No one answered,15:44
+149022100502,1,Address incomplete,Could not locate house,16:21`;
+
+const ORDER_COLS = {required:["order_id","customer_name","phone","item","amount","payment","address","city","awb"], optional:["language","size","pincode","past_orders","demo_buyer_note"]};
+const NDR_COLS = {required:["awb","reason"], optional:["attempt","rider_remark","attempt_time"]};
+const ALIASES = {waybill:"awb",awb_number:"awb",tracking_number:"awb",tracking_id:"awb",customer:"customer_name",name:"customer_name",buyer_name:"customer_name",mobile:"phone",phone_number:"phone",product:"item",product_name:"item",total:"amount",order_value:"amount",cod_amount:"amount",payment_mode:"payment",payment_method:"payment",shipping_address:"address",ndr_reason:"reason",remarks:"rider_remark",remark:"rider_remark",attempt_count:"attempt",time:"attempt_time"};
+
+const DEFAULT_SETTINGS = {agentName:"Asha", whatsapp:true, voice:true, voiceAfterHours:3, fixAddress:true, offerUpi:true, acceptReturns:true, flagFake:true, maxDays:6, signoff:""};
+
+/* ======================= helpers ======================= */
+const $=id=>document.getElementById(id);
+function h(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="style")e.setAttribute("style",v);else e.setAttribute(k,v===true?"":v);}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)));}return e;}
+const rs=n=>"₹"+Math.round(Number(n)||0).toLocaleString("en-IN");
+const awbKey=a=>String(a||"").replace(/[^0-9A-Za-z]/g,"");
+const nowISO=()=>new Date().toISOString();
+const ist=d=>new Date(d).toLocaleString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"});
+const istTime=d=>new Date(d).toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit"});
+function firstName(n){return String(n||"").trim().split(/\s+/)[0]||"there";}
+
+function parseCSV(text){
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true; else if(c===','){row.push(f);f="";} else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f);f=""; if(row.some(x=>x.trim()!=="")) rows.push(row); row=[]; } else f+=c; }
+  row.push(f); if(row.some(x=>x.trim()!=="")) rows.push(row);
+  if(!rows.length) return {headers:[],rows:[]};
+  const headers=rows[0].map(x=>{let k=x.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");return ALIASES[k]||k;});
+  return {headers, rows:rows.slice(1).map(r=>Object.fromEntries(headers.map((k,i)=>[k,(r[i]??"").trim()])))};
+}
+function checkCols(parsed,spec){return {missing:spec.required.filter(c=>!parsed.headers.includes(c)),found:spec.required.filter(c=>parsed.headers.includes(c)),opt:spec.optional.filter(c=>parsed.headers.includes(c))};}
+
+/* ======================= storage (db or memory) ======================= */
+let DB=null, USER=null, ME=null, UID=null, SAMPLE=null, DL=null, persistent=false, DEMO=false, realProfile=null;
+const useMem=()=>!persistent||DEMO;
+const mem={profile:null,uploads:{},cases:{}};
+let LSOK=false; try{ localStorage.setItem("__ds","1"); localStorage.removeItem("__ds"); LSOK=true; }catch(e){}
+const LS={k:p=>"doorstep:"+p, get(p){try{const v=localStorage.getItem(this.k(p));return v?JSON.parse(v):null;}catch(e){return null;}}, set(p,v){localStorage.setItem(this.k(p),JSON.stringify(v));}, del(p){try{localStorage.removeItem(this.k(p));}catch(e){}}, list(prefix){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(this.k(prefix))){try{out.push(JSON.parse(localStorage.getItem(k)));}catch(e){}}}}catch(e){}return out;}};
+const viaLS=()=>!DB&&LSOK;
+const store={
+  prof(){return DB.doc(`data/users/${UID}/profile`);},
+  async getProfile(){ if(useMem()) return mem.profile; if(viaLS()) return LS.get("profile"); const s=await this.prof().get(); return s.exists?JSON.parse(JSON.stringify(s.data())):null; },
+  async saveProfile(p){ if(useMem()){mem.profile=p;return;} if(viaLS()){LS.set("profile",p);return;} await this.prof().set(p); },
+  async listUploads(){ if(useMem()) return Object.values(mem.uploads); if(viaLS()) return LS.list("upload:"); const s=await this.prof().collection("uploads").get(); return s.docs.map(d=>({...JSON.parse(JSON.stringify(d.data())),id:d.id})); },
+  async saveUpload(u){ if(useMem()){mem.uploads[u.id]=u;return;} if(viaLS()){LS.set("upload:"+u.id,u);return;} await this.prof().collection("uploads").doc(u.id).set(u); },
+  async deleteUpload(id){ if(useMem()){delete mem.uploads[id];return;} if(viaLS()){LS.del("upload:"+id);return;} await this.prof().collection("uploads").doc(id).delete(); },
+  async listCases(){ if(useMem()) return Object.values(mem.cases); if(viaLS()) return LS.list("case:"); const s=await this.prof().collection("cases").get(); return s.docs.map(d=>({...JSON.parse(JSON.stringify(d.data())),id:d.id})); },
+  async saveCase(c){ if(useMem()){mem.cases[c.id]=c;return;} if(viaLS()){LS.set("case:"+c.id,c);return;} const {id,...body}=c; await this.prof().collection("cases").doc(id).set(body); },
+  async deleteCase(id){ if(useMem()){delete mem.cases[id];return;} if(viaLS()){LS.del("case:"+id);return;} await this.prof().collection("cases").doc(id).delete(); }
+};
+
+/* ======================= app state ======================= */
+const S={view:"loading",page:"overview",authTab:"register",profile:null,uploads:[],cases:{},sel:null,filter:"open",q:"",busy:false,runAll:null,err:"",flash:"",staged:{orders:null,ndr:null},typing:null,confirmClear:false};
+let ctl=null, liveOff=false;
+function setSession(v){try{ if(v) sessionStorage.setItem("doorstep_in","1"); else sessionStorage.removeItem("doorstep_in"); }catch(e){}}
+function hasSession(){try{return sessionStorage.getItem("doorstep_in")==="1";}catch(e){return false;}}
+
+/* build joined shipments from uploads */
+function shipments(){
+  const orders={}, ndr={};
+  for(const u of S.uploads){ for(const r of (u.rows||[])){ if(u.kind==="orders") orders[awbKey(r.awb)]=r; else { const k=awbKey(r.awb); const prev=ndr[k]; if(!prev||(Number(r.attempt)||1)>=(Number(prev.attempt)||1)) ndr[k]=r; } } }
+  const list=[];
+  for(const [k,n] of Object.entries(ndr)){ const o=orders[k]; if(!o) continue; list.push({id:k,order:o,ndr:n,st:S.cases[k]||null}); }
+  list.sort((a,b)=>a.order.customer_name.localeCompare(b.order.customer_name));
+  return {list, unmatched:Object.keys(ndr).filter(k=>!orders[k]).length, orders:Object.keys(orders).length, ndr:Object.keys(ndr).length};
+}
+function caseOf(id){ if(!S.cases[id]) S.cases[id]={id,status:"open",chat:[],calls:[],addressFixed:false,fake:false,paid:false,channel:"whatsapp",updatedAt:nowISO()}; return S.cases[id]; }
+const STATUS={open:["Not contacted","c-open"],talking:["In conversation","c-talking"],awaiting_payment:["Waiting for UPI","c-pay"],rebooked:["Re-attempt booked","c-rebooked"],return:["Return accepted","c-return"],human:["Needs you","c-human"]};
+const DONE=["rebooked","return","human"];
+const stOf=s=>(s&&s.status)||"open";
+function statusChip(s){const [l,c]=STATUS[stOf(s)];return h("span",{class:"chip dot "+c,text:l});}
+function addrOf(sh){return (sh.st&&sh.st.address)||[sh.order.address,sh.order.city,sh.order.pincode].filter(Boolean).join(", ");}
+
+
+/* ======================= demo store ======================= */
+function ago(min){return new Date(Date.now()-min*60000).toISOString();}
+function tomorrow(n){return new Date(Date.now()+(n||1)*864e5).toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"});}
+function demoCases(){
+  const c={};
+  c["149022100397"]={id:"149022100397",status:"rebooked",channel:"whatsapp",addressFixed:true,fake:false,paid:false,reattempt:tomorrow(1),address:"H.No 14, behind SBI branch, Station Road, Kota, 324007",updatedAt:ago(40),
+    chat:[{who:"agent",text:"Namaste Ravi ji, main Asha, Rangreza Jaipur se. Aapka Leheriya dupatta (₹549) aaj deliver nahi ho paya kyunki courier ko ghar ka number nahi mila. Poora address aur ek landmark bata denge?",t:ago(52)},{who:"buyer",text:"H.No 14, SBI branch ke peeche, Station Road",t:ago(49)},{who:"sys",text:"Address updated with the courier"},{who:"agent",text:"Dhanyavaad! Address update ho gaya. Kal delivery try karein?",t:ago(48)},{who:"buyer",text:"Haan kal theek hai",t:ago(44)},{who:"agent",text:"Done ji, kal delivery hogi aur rider aane se pehle call karega. Dhanyavaad!",t:ago(43)},{who:"sys",text:"Re-attempt booked for "+tomorrow(1)+" · Call before delivery"}],
+    calls:[{method:"POST",path:"/api/p/edit",body:{waybill:"149022100397",add:"H.No 14, behind SBI branch, Station Road, Kota, 324007"},res:{status:"success"},t:ago(48),label:"Address updated"},{method:"POST",path:"/api/p/update",body:{waybill:"149022100397",act:"RE-ATTEMPT",date:tomorrow(1),remarks:"Call before delivery"},res:{status:"success"},t:ago(43),label:"Re-attempt booked"}]};
+  c["149022100412"]={id:"149022100412",status:"rebooked",channel:"whatsapp",addressFixed:false,fake:true,paid:false,reattempt:tomorrow(1),updatedAt:ago(30),
+    chat:[{who:"agent",text:"Hi Neha, this is Asha from Rangreza Jaipur. Your block-print anarkali (₹1,899) couldn't be delivered today, the courier says no one was home. Shall we try again?",t:ago(38)},{who:"buyer",text:"What?? I was home the whole day. Nobody came, nobody called.",t:ago(35)},{who:"sys",text:"Flagged as a likely fake delivery attempt"},{who:"agent",text:"I'm really sorry, Neha. I've reported this to the courier. Can we deliver tomorrow? I'll ask the rider to call you first.",t:ago(34)},{who:"buyer",text:"Ok tomorrow, but make sure they actually come",t:ago(31)},{who:"agent",text:"Booked for tomorrow with a note to call before coming. Thank you for your patience!",t:ago(30)},{who:"sys",text:"Re-attempt booked for "+tomorrow(1)+" · Call before delivery, buyer home all day"}],
+    calls:[{method:"POST",path:"/escalations",body:{waybill:"149022100412",type:"FAKE_ATTEMPT",buyer_said:"Was home the whole day, nobody came or called"},res:{status:"logged"},t:ago(34),label:"Fake attempt flagged"},{method:"POST",path:"/api/p/update",body:{waybill:"149022100412",act:"RE-ATTEMPT",date:tomorrow(1),remarks:"Call before delivery, buyer home all day"},res:{status:"success"},t:ago(30),label:"Re-attempt booked"}]};
+  c["149022100428"]={id:"149022100428",status:"return",channel:"whatsapp",addressFixed:false,fake:false,paid:false,updatedAt:ago(22),
+    chat:[{who:"agent",text:"Hi Arjun, Asha from Rangreza Jaipur. Your indigo Nehru jacket (₹1,499) was declined at the door today. Would you still like it delivered?",t:ago(26)},{who:"buyer",text:"No bhai, already bought one locally. Cancel it.",t:ago(24)},{who:"agent",text:"No problem at all, Arjun. I've cancelled the delivery and it will go back to us. Thanks for letting us know!",t:ago(22)},{who:"sys",text:"Return accepted: bought one locally"}],
+    calls:[{method:"POST",path:"/api/p/update",body:{waybill:"149022100428",act:"RTO",reason:"Buyer bought locally"},res:{status:"success"},t:ago(22),label:"Return accepted"}]};
+  c["149022100454"]={id:"149022100454",status:"human",channel:"whatsapp",addressFixed:false,fake:false,paid:false,handoffReason:"Refused because the packet looked torn; wants a fresh piece",updatedAt:ago(12),
+    chat:[{who:"agent",text:"Namaste Kavita ji, Asha, Rangreza Jaipur se. Aapka Kalamkari palazzo set (₹1,149) aaj aapne lene se mana kiya. Kya koi dikkat thi?",t:ago(16)},{who:"buyer",text:"Packet phata hua tha, khula laga. Mujhe naya piece chahiye, kisi se baat karni hai",t:ago(14)},{who:"agent",text:"Maaf kijiye ji, ye nahi hona chahiye tha. Main aapki baat hamari team tak pahuncha rahi hoon, woh aaj aapko call karenge.",t:ago(12)},{who:"sys",text:"Passed to you: Refused because the packet looked torn; wants a fresh piece"}],
+    calls:[{method:"POST",path:"/api/p/update",body:{waybill:"149022100454",act:"HOLD",remarks:"Store team will call buyer"},res:{status:"success"},t:ago(12),label:"Held for your team"}]};
+  return c;
+}
+function startDemo(){
+  realProfile=S.profile; DEMO=true;
+  const prof={ownerName:"Meera",storeName:"Rangreza Jaipur",city:"Jaipur",courier:"Delhivery",volume:"1,000 to 5,000",email:"",phone:"",settings:{...DEFAULT_SETTINGS,signoff:"Rangreza Jaipur"},createdAt:nowISO()};
+  const o=parseCSV(SAMPLE_ORDERS), n=parseCSV(SAMPLE_NDR);
+  mem.profile=prof; mem.uploads={"orders-demo":{id:"orders-demo",kind:"orders",name:"orders_last_30_days.csv",count:o.rows.length,uploadedAt:ago(90),rows:o.rows},"ndr-demo":{id:"ndr-demo",kind:"ndr",name:"delhivery_ndr_report.csv",count:n.rows.length,uploadedAt:ago(90),rows:n.rows}};
+  mem.cases=demoCases();
+  S.profile=prof; S.uploads=Object.values(mem.uploads); S.cases=JSON.parse(JSON.stringify(mem.cases));
+  S.view="app"; S.page="overview"; S.sel=null; S.filter="open"; S.flash=""; S.err="";
+  render(); window.scrollTo(0,0);
+}
+function exitDemo(toRegister){
+  ctl?.abort(); DEMO=false; mem.profile=null; mem.uploads={}; mem.cases={};
+  S.profile=realProfile; S.uploads=[]; S.cases={}; S.flash="";
+  S.view="auth"; S.authTab=toRegister||!S.profile?"register":"login"; render(); window.scrollTo(0,0);
+}
+function demoButton(label){return h("button",{class:"btn block",type:"button",onclick:startDemo,style:"border-style:dashed"},label||"No files? Explore a demo store");}
+
+
+/* ======================= AI outside Claude: hosted API, else scripted demo ======================= */
+let AI_MODE = window.claude ? "claude" : "pending";
+function makeHostedSample(){
+  const D = n => new Date(Date.now() + n * 864e5).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const A = (reply, actions) => ({ reply, actions: actions || [] });
+  const SCRIPTS = {
+    "149022100381": { name: "Sunita Meena",
+      agent: [A("Namaste Sunita ji, main Asha, Rangreza Jaipur se. Aapka Bandhej kurta set (₹1,299) aaj deliver nahi ho paya kyunki ghar par taala tha. Dobara kab bhejein?"),
+              A("Bilkul ji. Parso ke liye book kar diya hai, aur rider aane se pehle aapko call karega. Dhanyavaad!", [{ type: "reattempt", date: D(2), remarks: "Call before delivery" }])],
+      buyer: ["Kal main bahar hoon. Parso bhej dijiye, aur aane se pehle call karna."] },
+    "149022100397": { name: "Ravi Sharma",
+      agent: [A("Namaste Ravi ji, Asha, Rangreza Jaipur se. Aapka Leheriya dupatta (₹549) aaj nahi pahuncha, courier ko ghar ka number nahi mila. Poora address aur ek landmark bata denge?"),
+              A("Dhanyavaad ji, address update ho gaya. Kal delivery try karein?", [{ type: "update_address", address: "H.No 14, behind SBI branch, Station Road, Kota, 324007" }]),
+              A("Done! Kal delivery hogi, rider aane se pehle call karega.", [{ type: "reattempt", date: D(1), remarks: "Call before delivery" }])],
+      buyer: ["H.No 14, SBI branch ke peeche, Station Road", "Haan kal theek hai"] },
+    "149022100412": { name: "Neha Joshi",
+      agent: [A("Hi Neha, Asha from Rangreza Jaipur. Your block-print anarkali (₹1,899) couldn't be delivered today, the courier says nobody was home. Shall we try again?"),
+              A("I'm really sorry, Neha. I've reported this to the courier. Can we deliver tomorrow? I'll ask the rider to call you first.", [{ type: "flag_fake_attempt", note: "Was home all day, nobody came or called" }]),
+              A("Booked for tomorrow with a clear note to call before coming. Thanks for your patience!", [{ type: "reattempt", date: D(1), remarks: "Call before delivery, buyer home all day" }])],
+      buyer: ["What?? I was home the whole day. Nobody came, nobody called.", "Ok tomorrow, but make sure they actually come"] },
+    "149022100428": { name: "Arjun Singh",
+      agent: [A("Hi Arjun, Asha from Rangreza Jaipur. Your indigo Nehru jacket (₹1,499) was declined at the door today. Would you still like it?"),
+              A("No problem at all, Arjun. I've cancelled the delivery and it'll come back to us. Thanks for letting us know!", [{ type: "return", reason: "Bought one locally" }])],
+      buyer: ["Nahi bhai, local se le liya. Cancel kar do."] },
+    "149022100433": { name: "Pooja Agarwal",
+      agent: [A("Hi Pooja, Asha from Rangreza Jaipur. Your Gota-work saree (₹2,399) couldn't be delivered today as cash wasn't ready. Shall we try again?"),
+              A("Of course! I've sent a secure UPI link for ₹2,399 below. Once it's paid, I'll book the delivery.", [{ type: "send_upi_link" }]),
+              A("Payment received, thank you! Your saree is booked for tomorrow, nothing to pay at the door.", [{ type: "reattempt", date: D(1), remarks: "Now prepaid, no cash to collect" }])],
+      buyer: ["Yes please, but I'd rather pay by UPI now. I don't keep that much cash at home."] },
+    "149022100449": { name: "Imran Qureshi",
+      agent: [A("Namaste Imran ji, Asha, Rangreza Jaipur se. Aapka white cotton kurta (₹899) aaj nahi de paaye, dukaan band thi. Kab aur kahan bhejein?"),
+              A("Theek hai ji, kal 11 baje ke baad 21 Rani Bazar dukaan par bhej rahe hain. Dhanyavaad!", [{ type: "reattempt", date: D(1), remarks: "Deliver at shop, after 11am" }])],
+      buyer: ["Main dukaan par hota hoon. 21 Rani Bazar pe hi de do, 11 baje ke baad."] },
+    "149022100454": { name: "Kavita Rathore",
+      agent: [A("Namaste Kavita ji, Asha, Rangreza Jaipur se. Aapne aaj Kalamkari palazzo set (₹1,149) lene se mana kiya. Kya koi dikkat thi?"),
+              A("Maaf kijiye ji, aisa nahi hona chahiye tha. Main aapki baat hamari team tak pahuncha rahi hoon, woh aaj hi aapko call karenge.", [{ type: "handoff", reason: "Packet looked torn at the door; wants a fresh piece" }])],
+      buyer: ["Packet phata hua tha, khula laga. Mujhe naya piece chahiye, kisi se baat karni hai."] },
+    "149022100460": { name: "Deepak Yadav",
+      agent: [A("Namaste Deepak ji, Asha, Rangreza Jaipur se. Aapki cotton bedsheet (₹799) aaj nahi pahunchi, aapka phone band tha. Kab bhejein?"),
+              A("Theek hai ji, kal subah ke liye book kar diya. Dhanyavaad!", [{ type: "reattempt", date: D(1), remarks: "Morning delivery" }])],
+      buyer: ["Phone band tha. Kal subah bhej do."] },
+    "149022100475": { name: "Anjali Gupta",
+      agent: [A("Hi Anjali, Asha from Rangreza Jaipur. Your Chanderi kurti couldn't be delivered today, the rider couldn't find your flat number. Could you share it?"),
+              A("Thanks, Anjali! Address updated, and it's booked for tomorrow evening.", [{ type: "update_address", address: "Flat 302, Tower B, Mahima Panorama, Jagatpura, Jaipur, 302017" }, { type: "reattempt", date: D(1), remarks: "Evening delivery" }])],
+      buyer: ["It's Flat 302, Tower B. Tomorrow evening works."] },
+    "149022100481": { name: "Mohit Kumawat",
+      agent: [A("Hi Mohit, Asha from Rangreza Jaipur. Aapka kids' lehenga (₹1,099) abhi hold par hai kyunki aap bahar hain. Kab bhejein?"),
+              A("Done! 4 din baad ke liye book kar diya. Safe travels!", [{ type: "reattempt", date: D(4), remarks: "Buyer travelling until then" }])],
+      buyer: ["Main 4 din baad wapas aaunga, uske baad bhej do."] },
+    "149022100496": { name: "Farah Khan",
+      agent: [A("Hi Farah, Asha from Rangreza Jaipur. Your mirror-work cushion covers (₹749) couldn't be delivered today, no one answered. When suits you?"),
+              A("Perfect, booked for tomorrow afternoon. Thank you!", [{ type: "reattempt", date: D(1), remarks: "Afternoon delivery" }])],
+      buyer: ["Tomorrow afternoon is perfect."] },
+    "149022100502": { name: "Lokesh Saini",
+      agent: [A("Namaste Lokesh ji, Asha, Rangreza Jaipur se. Aapka sky blue kurta (₹999) aaj nahi pahuncha, rider ko ghar nahi mila. Poora address bata denge?"),
+              A("Dhanyavaad ji! Address update ho gaya, parso ke liye book kar diya.", [{ type: "update_address", address: "House No 31, 2nd lane, behind Shiv Mandir, Tonk, 304001" }, { type: "reattempt", date: D(2), remarks: "Call on arrival" }])],
+      buyer: ["2nd gali, makan no 31, Shiv Mandir ke peeche. Parso bhejna."] }
+  };
+
+  const convo = p => (p.split("Conversation so far:")[1] || "");
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  function scriptedAgent(prompt){
+    const awb=(prompt.match(/AWB (\d+)/)||[])[1]; const i=(convo(prompt).match(/^Agent: /gm)||[]).length; const sc=SCRIPTS[awb];
+    if(sc&&sc.agent[i]) return sc.agent[i];
+    if(i===0){ const name=(prompt.match(/Buyer: ([^,\n]+)/)||[])[1]||"there"; const item=(prompt.match(/Item: ([^\n(,]+)/)||[])[1]||"your order"; return A(`Hi ${name.split(" ")[0]}, this is the delivery team. Your ${item.trim()} couldn't be delivered today. When should we try again?`); }
+    return A("Thank you! Booked for tomorrow.",[{type:"reattempt",date:D(1),remarks:""}]);
+  }
+  function scriptedBuyer(prompt){
+    const name=(prompt.match(/role-playing ([^,]+), a buyer/)||[])[1]; const i=(convo(prompt).match(/^Buyer: /gm)||[]).length;
+    const sc=Object.values(SCRIPTS).find(x=>x.name===name); return (sc&&sc.buyer[i])||"Kal bhej dijiye, theek hai.";
+  }
+  function parseJSON(t){ try{return JSON.parse(t);}catch(e){} const f=t.match(/```(?:json)?\s*([\s\S]*?)```/); if(f){try{return JSON.parse(f[1]);}catch(e){}} const a=t.indexOf("{"),b=t.lastIndexOf("}"); if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}} throw {code:"invalid_json"}; }
+  async function hosted(prompt,signal){
+    if(AI_MODE==="scripted") return null;
+    try{
+      const r=await fetch("/api/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt}),signal});
+      if(r.ok){ AI_MODE="live"; const d=await r.json(); return d.text||""; }
+      if(r.status===429) throw {code:"rate_limited"};
+      AI_MODE="scripted"; return null;
+    }catch(e){ if(e&&e.name==="AbortError") throw {code:"cancelled"}; if(e&&e.code) throw e; AI_MODE="scripted"; return null; }
+  }
+  async function sample(prompt,opts={}){ const t=await hosted(prompt,opts.signal); if(t!=null) return {text:t,truncated:false,modelTierApplied:"quick"}; await pause(900); return {text:scriptedBuyer(prompt),truncated:false,modelTierApplied:"quick"}; }
+  sample.json=async (prompt,opts={})=>{ const t=await hosted(prompt+"\n\nReply with only the JSON object.",opts.signal); if(t!=null) return parseJSON(t); await pause(1100); return scriptedAgent(prompt); };
+  return sample;
+}
+
+/* ======================= boot ======================= */
+async function boot(){
+  try{ if(window.claude){ [DB,USER,SAMPLE,DL]=await Promise.all([window.claude.use("db"),window.claude.use("user"),window.claude.use("sample"),window.claude.use("downloads")]); } }catch(e){}
+  if(USER){ ME=await USER.me(); UID=ME.id; }
+  persistent=!!(DB&&UID)||(!DB&&LSOK);
+  if(!SAMPLE){ SAMPLE=makeHostedSample(); }
+  try{ S.profile=await store.getProfile(); }catch(e){ S.err="Couldn't reach your saved data. You can still use the desk, but changes won't be saved."; persistent=false; }
+  if(S.profile){ S.authTab="login"; if(hasSession()){ await loadData(); S.view=S.uploads.length?"app":"onboard"; } else S.view="auth"; }
+  else S.view="auth";
+  render();
+}
+async function loadData(){
+  try{
+    S.uploads=await store.listUploads();
+    const cs=await store.listCases(); S.cases={}; for(const c of cs) S.cases[c.id]=c;
+  }catch(e){ S.err="Couldn't load your data. Try reloading the page."; }
+}
+
+/* ======================= render ======================= */
+function render(){
+  const app=$("app"); app.replaceChildren();
+  if(S.view==="loading") app.append(h("div",{class:"center"},h("p",{class:"muted",text:"Loading your desk..."})));
+  else if(S.view==="auth") app.append(viewAuth());
+  else if(S.view==="onboard") app.append(viewOnboard());
+  else app.append(viewShell());
+}
+
+/* ---------- auth ---------- */
+function viewAuth(){
+  const left=h("div",{class:"auth-l"},
+    h("div",{class:"logo"},h("i"),"Doorstep"),
+    h("div",{style:"display:flex;flex-direction:column;gap:14px"},
+      h("h1",{text:"Every failed delivery gets a second chance tonight."}),
+      h("p",{class:"sub",text:"Upload your courier's failed-delivery report. Our agent talks to each buyer on WhatsApp or a call, rebooks the parcel, fixes the address or takes the return, and tells you what happened by morning."})),
+    h("div",{class:"proof"},
+      h("div",null,h("b",{text:"WhatsApp + calls"}),"In Hindi, Hinglish or English"),
+      h("div",null,h("b",{text:"Back to courier"}),"Re-attempts and addresses sent for you"),
+      h("div",null,h("b",{text:"You stay in charge"}),"Tricky cases come to you"))
+  );
+  const box=h("div",{class:"auth-box"});
+  box.append(h("div",{class:"seg",role:"tablist"},
+    h("button",{role:"tab","aria-selected":String(S.authTab==="register"),onclick:()=>{S.authTab="register";render();},text:"Register your store"}),
+    h("button",{role:"tab","aria-selected":String(S.authTab==="login"),onclick:()=>{S.authTab="login";render();},text:"Log in"})));
+  if(S.err) box.append(h("p",{class:"note err",text:S.err}));
+  if(!persistent) box.append(h("p",{class:"note info",text:"Your browser is blocking storage, so this desk works as a test drive: nothing is saved after you close the page."}));
+  const ident = ME&&ME.id ? h("div",{class:"idrow"},h("img",{src:ME.avatarUrl,alt:""}),h("div",null,h("div",{text:"Signed in securely as "+(ME.name||"your Claude account")}),h("div",{class:"fine",text:"No separate password needed."}))) : null;
+
+  if(S.authTab==="login"){
+    box.append(h("h2",{style:"font-size:26px",text:"Welcome back"}));
+    if(S.profile){
+      box.append(h("div",{class:"storecard"},
+        h("div",null,h("div",{class:"fine",text:"Your store"}),h("div",{style:"font-family:var(--display);font-weight:800;font-size:22px",text:S.profile.storeName}),h("div",{class:"fine",text:`${S.profile.ownerName} · ${S.profile.city} · ships with ${S.profile.courier}`})),
+        ident,
+        h("button",{class:"btn primary block",type:"button",onclick:login,text:"Log in to "+S.profile.storeName})));
+    } else {
+      box.append(h("p",{class:"muted",text:"There's no store on this account yet."}), h("button",{class:"btn dark",type:"button",onclick:()=>{S.authTab="register";render();},text:"Register your store"}));
+    }
+    box.append(h("div",{class:"fine",style:"text-align:center",text:"or"}), demoButton("Explore a demo store instead"));
+    return h("div",{class:"auth"},left,h("div",{class:"auth-r"},box));
+  }
+  // register
+  if(S.profile){ box.append(h("p",{class:"note",text:`This account already has a store (${S.profile.storeName}). Registering again replaces its details but keeps your data.`})); }
+  box.append(h("div",null,h("h2",{style:"font-size:26px",text:"Set up your store"}),h("p",{class:"muted",style:"margin-top:4px",text:"Takes a minute. Next you'll upload your data."})));
+  const p=S.profile||{};
+  const f=h("form",{style:"display:flex;flex-direction:column;gap:14px"});
+  f.append(
+    h("div",{class:"grid2"},
+      fld("r-owner","Your name","text",p.ownerName||(ME&&ME.name)||"",true),
+      fld("r-store","Store name","text",p.storeName||"",true,"Shown to buyers in messages")),
+    h("div",{class:"grid2"},
+      fld("r-email","Business email","email",p.email||"",false),
+      fld("r-phone","Support phone","tel",p.phone||"",false)),
+    h("div",{class:"grid2"},
+      fld("r-city","City","text",p.city||"",true),
+      h("div",{class:"field"},h("label",{for:"r-courier",text:"Main courier"}),sel("r-courier",["Delhivery","Shiprocket","Xpressbees","Ecom Express","Other"],p.courier||"Delhivery"))),
+    h("div",{class:"field"},h("label",{for:"r-vol",text:"Orders per month"}),sel("r-vol",["Under 1,000","1,000 to 5,000","5,000 to 20,000","Over 20,000"],p.volume||"1,000 to 5,000")),
+    ident,
+    h("label",{class:"check"},h("input",{type:"checkbox",id:"r-ok",required:true,checked:!!p.storeName}),h("span",{text:"I allow the agent to message and call my buyers about their deliveries, on behalf of my store."})),
+    h("button",{class:"btn primary block",type:"submit",text:S.profile?"Save and continue":"Create my store"})
+  );
+  f.addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const prof={...(S.profile||{}),ownerName:$("r-owner").value.trim(),storeName:$("r-store").value.trim(),email:$("r-email").value.trim(),phone:$("r-phone").value.trim(),city:$("r-city").value.trim(),courier:$("r-courier").value,volume:$("r-vol").value,settings:{...DEFAULT_SETTINGS,...((S.profile||{}).settings||{})},createdAt:(S.profile&&S.profile.createdAt)||nowISO(),updatedAt:nowISO()};
+    if(!prof.settings.signoff) prof.settings.signoff=prof.storeName;
+    try{ await store.saveProfile(prof); S.profile=prof; S.err=""; setSession(true); await loadData(); S.view=S.uploads.length?"app":"onboard"; render(); window.scrollTo(0,0); }
+    catch(e){ S.err="Couldn't save your store. Check your connection and try again."; render(); }
+  });
+  box.append(f);
+  box.append(h("div",{class:"fine",style:"text-align:center",text:"Just looking around?"}), demoButton("Explore a demo store, no sign-up"));
+  return h("div",{class:"auth"},left,h("div",{class:"auth-r"},box));
+}
+function fld(id,label,type,val,req,hint){return h("div",{class:"field"},h("label",{for:id,text:label+(req?"":" (optional)")}),h("input",{id,type,value:val,required:req,autocomplete:"off"}),hint?h("span",{class:"hint",text:hint}):null);}
+function sel(id,opts,val){const s=h("select",{id});for(const o of opts)s.append(h("option",{value:o,selected:o===val,text:o}));return s;}
+async function login(){ setSession(true); await loadData(); S.view=S.uploads.length?"app":"onboard"; S.page="overview"; render(); }
+function logout(){ setSession(false); ctl?.abort(); S.view="auth"; S.authTab="login"; render(); }
+
+/* ---------- onboarding / upload ---------- */
+function uploadPanel(inApp){
+  const wrap=h("div",{style:"display:flex;flex-direction:column;gap:16px"});
+  wrap.append(h("div",{class:"uploads"},upCard("orders"),upCard("ndr")));
+  const o=S.staged.orders, n=S.staged.ndr;
+  const okO=o&&!o.check.missing.length, okN=n&&!n.check.missing.length;
+  let matched=0,unmatched=0;
+  if(okO&&okN){ const keys=new Set(o.parsed.rows.map(r=>awbKey(r.awb))); for(const r of n.parsed.rows){ if(keys.has(awbKey(r.awb))) matched++; else unmatched++; } }
+  const bar=h("div",{class:"card joinbar"});
+  bar.append(h("div",null,
+    h("div",{style:"font-weight:600",text: okO&&okN ? `${matched} failed deliveries matched to your orders` : "Add both files to continue"}),
+    h("div",{class:"fine",text: okO&&okN ? (unmatched?`${unmatched} failed deliveries have no matching order and will be skipped.`:"Every failed delivery found its order.") : "We match them on the AWB (tracking) number."})));
+  bar.append(h("div",{class:"row"},
+    h("button",{class:"btn ghost",type:"button",onclick:useSamples,text:"Use sample files"}),
+    h("button",{class:"btn primary",type:"button",disabled:!(okO&&okN&&matched)||S.busy,onclick:()=>importFiles(inApp),text:S.busy?"Importing...":`Import ${matched||""} failed deliveries`})));
+  wrap.append(bar);
+  return wrap;
+}
+function upCard(kind){
+  const spec=kind==="orders"?ORDER_COLS:NDR_COLS, st=S.staged[kind];
+  const title=kind==="orders"?"Your orders":"Failed-delivery report";
+  const desc=kind==="orders"?"Export from Shopify or your store as CSV. Recent orders are enough.":"Download from your courier panel (Delhivery: NDR report) as CSV.";
+  const inp=h("input",{type:"file",accept:".csv,text/csv",id:"f-"+kind,hidden:true,onchange:e=>{const f=e.target.files[0]; if(f) readFile(kind,f);}});
+  const drop=h("div",{class:"drop"+(st&&!st.check.missing.length?" done":""),tabindex:"0",role:"button","aria-label":"Choose "+title+" CSV",
+    onclick:()=>inp.click(), onkeydown:e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();inp.click();}},
+    ondragover:e=>{e.preventDefault();e.currentTarget.classList.add("over");}, ondragleave:e=>e.currentTarget.classList.remove("over"),
+    ondrop:e=>{e.preventDefault();e.currentTarget.classList.remove("over");const f=e.dataTransfer.files[0]; if(f) readFile(kind,f);}},
+    st? h("div",{style:"font-weight:600",text:st.name}) : h("div",{style:"font-weight:600",text:"Drop CSV here or click to choose"}),
+    h("div",{class:"fine",text: st?`${st.parsed.rows.length} rows`:"Up to 2,000 rows"}));
+  const card=h("div",{class:"card up"},
+    h("div",{class:"row",style:"justify-content:space-between"},h("h3",{style:"font-size:18px",text:title}),
+      h("button",{class:"btn sm",type:"button",onclick:()=>downloadSample(kind),text:"Download template"})),
+    h("p",{class:"fine",text:desc}), drop, inp);
+  const cols=h("div",{class:"cols"});
+  for(const c of spec.required){ const miss=st&&st.check.missing.includes(c); cols.append(h("span",{class:"chip "+(st?(miss?"col-miss":"col-ok"):"col-opt"),text:c+(st?(miss?" missing":" ✓"):"")})); }
+  for(const c of spec.optional){ cols.append(h("span",{class:"chip col-opt",text:c+" (optional)"+(st&&st.check.opt.includes(c)?" ✓":"")})); }
+  card.append(h("div",{class:"fine",style:"font-weight:600",text:"Columns we read"}),cols);
+  if(st&&st.check.missing.length) card.append(h("p",{class:"note err",text:`This file is missing ${st.check.missing.join(", ")}. Rename the column or pick a different export.`}));
+  if(st&&st.parsed.rows.length){
+    const show=kind==="orders"?["order_id","customer_name","item","amount","payment","city","awb"]:["awb","attempt","reason","rider_remark"];
+    const cols2=show.filter(c=>st.parsed.headers.includes(c));
+    const t=h("table",null,h("thead",null,h("tr",null,cols2.map(c=>h("th",{text:c})))),h("tbody",null,st.parsed.rows.slice(0,4).map(r=>h("tr",null,cols2.map(c=>h("td",{text:r[c]}))))));
+    card.append(h("div",{class:"tblwrap"},t));
+  }
+  return card;
+}
+function readFile(kind,file){
+  if(file.size>3e6){ S.flash="That file is over 3 MB. Export fewer rows (the last 30 days is plenty) and try again."; render(); return; }
+  const r=new FileReader();
+  r.onload=()=>{ stage(kind,file.name,String(r.result)); };
+  r.onerror=()=>{ S.flash="Couldn't read that file. Try exporting it again as CSV."; render(); };
+  r.readAsText(file);
+}
+function stage(kind,name,text){
+  const parsed=parseCSV(text); if(parsed.rows.length>2000) parsed.rows=parsed.rows.slice(0,2000);
+  S.staged[kind]={name,parsed,check:checkCols(parsed,kind==="orders"?ORDER_COLS:NDR_COLS)}; S.flash=""; render();
+}
+function useSamples(){ stage("orders","sample_orders.csv",SAMPLE_ORDERS); stage("ndr","sample_ndr_report.csv",SAMPLE_NDR); }
+async function downloadSample(kind){
+  const data=kind==="orders"?SAMPLE_ORDERS:SAMPLE_NDR, filename=kind==="orders"?"doorstep_orders_template.csv":"doorstep_ndr_report_template.csv";
+  if(!DL){ try{ const url=URL.createObjectURL(new Blob([data],{type:"text/csv"})); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch(e){ S.flash="Couldn't download the template. Use the sample files button instead."; render(); } return; }
+  try{ await DL.save({filename,data}); }catch(e){ if(e&&e.code!=="cancelled"&&e.code!=="declined"){ S.flash="Couldn't save the template. Use the sample files button instead."; render(); } }
+}
+async function importFiles(inApp){
+  if(S.busy) return; S.busy=true; render();
+  try{
+    const stamp=Date.now();
+    for(const kind of ["orders","ndr"]){
+      const st=S.staged[kind]; const rows=st.parsed.rows; const size=250; const parts=Math.ceil(rows.length/size);
+      for(const u of S.uploads.filter(u=>u.kind===kind)){ await store.deleteUpload(u.id); }
+      for(let i=0;i<parts;i++){ await store.saveUpload({id:`${kind}-${stamp}-${i}`,kind,name:st.name,part:i,parts,count:rows.length,uploadedAt:nowISO(),rows:rows.slice(i*size,(i+1)*size)}); }
+    }
+    S.uploads=await store.listUploads();
+    S.staged={orders:null,ndr:null};
+    S.flash=""; S.busy=false; S.view="app"; S.page=inApp?"data":"overview";
+    if(inApp) S.flash="Imported. Your failed deliveries are up to date.";
+  }catch(e){ S.busy=false; S.flash=(e&&e.code==="quota_exceeded")?"Your storage is full. Clear agent progress or upload fewer rows.":"Import didn't finish. Check your connection and try again."; }
+  render(); window.scrollTo(0,0);
+}
+function viewOnboard(){
+  const w=h("div",{class:"onb"});
+  w.append(h("div",{class:"row",style:"justify-content:space-between"},h("div",{class:"logo"},h("i"),"Doorstep"),h("button",{class:"btn sm",type:"button",onclick:logout,text:"Log out"})));
+  w.append(h("div",{class:"steps"},
+    h("span",{class:"step done"},h("b",{text:"✓"}),"Store details"),
+    h("span",{class:"step on"},h("b",{text:"2"}),"Upload your data"),
+    h("span",{class:"step"},h("b",{text:"3"}),"Agent gets to work")));
+  w.append(h("div",null,h("h1",{style:"font-size:clamp(26px,3.4vw,36px);font-weight:800",text:`Hi ${firstName(S.profile.ownerName)}, let's bring in today's failed deliveries`}),
+    h("p",{class:"muted",style:"margin-top:6px;max-width:70ch",text:"Upload two CSV files: your orders (so the agent knows the buyer, item and address) and your courier's failed-delivery report. You can replace them any time."})));
+  if(S.flash) w.append(h("p",{class:"note err",text:S.flash}));
+  w.append(uploadPanel(false));
+  w.append(h("div",{class:"card joinbar"},h("div",null,h("div",{style:"font-weight:600",text:"Don't have your files handy?"}),h("div",{class:"fine",text:"Look around a demo store with a day's failed deliveries. Your own store stays as it is."})),h("button",{class:"btn dark",type:"button",onclick:startDemo,text:"Explore the demo store"})));
+  w.append(liveCard(true));
+  return w;
+}
+function liveCard(compact){
+  return h("div",{class:"card src live"},
+    h("div",{class:"top"},h("div",{class:"row"},h("div",{class:"ic",text:"D"}),h("div",null,h("b",{text:(S.profile&&S.profile.courier)||"Delhivery"}),h("div",{class:"fine",text:"Live connection"}))),h("span",{class:"chip c-soon",text:"Coming soon"})),
+    h("p",{class:"fine",text:"Connect your courier account and failed deliveries flow in every hour, with re-attempts and address changes sent back automatically. No more CSV uploads."}),
+    h("button",{class:"btn",type:"button",disabled:true,"aria-disabled":"true",title:"Available soon",text:"Set up live connection"}));
+}
+
+/* ---------- app shell ---------- */
+function counts(){
+  const {list}=shipments(); const c={all:list.length,open:0,talking:0,rebooked:0,return:0,human:0,awaiting_payment:0,fixed:0,fake:0,paid:0,value:0};
+  for(const s of list){ const st=stOf(s.st); c[st]++; if(!DONE.includes(st)) c.openAll=(c.openAll||0)+1; if(s.st){ if(s.st.addressFixed)c.fixed++; if(s.st.fake)c.fake++; if(s.st.paid)c.paid++; } if(st==="rebooked") c.value+=Number(s.order.amount)||0; }
+  c.openAll=c.openAll||0; return c;
+}
+function viewShell(){
+  const c=counts();
+  const nav=h("nav",{class:"nav","aria-label":"Main"});
+  const ICONS={overview:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',cases:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',settings:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',data:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'};
+  for(const [k,l,sh,n] of [["overview","Overview","Home"],["cases","Failed deliveries","Deliveries",c.openAll],["settings","Agent settings","Agent"],["data","Data sources","Data"]]){
+    const ic=document.createElementNS("http://www.w3.org/2000/svg","svg"); ic.setAttribute("viewBox","0 0 24 24"); ic.setAttribute("class","ic"); ic.setAttribute("fill","none"); ic.setAttribute("stroke","currentColor"); ic.setAttribute("stroke-width","1.8"); ic.setAttribute("stroke-linecap","round"); ic.setAttribute("stroke-linejoin","round"); ic.setAttribute("aria-hidden","true"); ic.innerHTML=ICONS[k];
+    nav.append(h("button",{type:"button","aria-current":S.page===k?"page":null,onclick:()=>{S.page=k;S.flash="";S.confirmClear=false;S.mDetail=false;render();window.scrollTo(0,0);}},ic,h("span",{class:"nf",text:l}),h("span",{class:"ns",text:sh}),n?h("span",{class:"n",text:String(n)}):null));
+  }
+  const side=h("aside",{class:"side"},h("div",{class:"logo"},h("i"),"Doorstep"),nav,
+    h("div",{class:"who"},h("div",null,h("b",{text:S.profile.storeName}),h("span",{text:S.profile.ownerName})),h("button",{class:"btn sm",type:"button",onclick:()=>DEMO?exitDemo(false):logout(),text:DEMO?"Exit demo":"Log out"})));
+  const main=h("main",{class:"main"});
+  if(S.err) main.append(h("p",{class:"note err",text:S.err}));
+  if(DEMO) main.append(h("div",{class:"banner"},h("span",null,h("b",{text:"Demo store. "}),"Sample buyers and orders, a few already handled by the agent. Nothing here is saved."),h("div",{class:"row"},h("button",{class:"btn sm dark",type:"button",onclick:()=>exitDemo(!realProfile),text:realProfile?"Back to my store":"Create my own store"}))));
+  else if(!persistent) main.append(h("p",{class:"note info",text:"Test drive: your browser is blocking storage, so nothing is saved after you close the page."}));
+  if(S.page==="overview") main.append(...pageOverview(c));
+  else if(S.page==="cases") main.append(...pageCases());
+  else if(S.page==="settings") main.append(...pageSettings());
+  else main.append(...pageData());
+  return h("div",{class:"shell"},side,main);
+}
+
+/* ---------- overview ---------- */
+function pageOverview(c){
+  const out=[];
+  const hr=Number(new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",hour12:false}));
+  const greet=hr<12?"Good morning":hr<17?"Good afternoon":"Good evening";
+  const title = c.all ? (c.rebooked ? `${c.rebooked} of ${c.all} failed parcels are back on the road` : `${c.all} parcels didn't make it. Let's get them back on the road.`) : "No failed deliveries yet";
+  out.push(h("div",{class:"phead"},h("div",null,h("p",{class:"fine",text:`${greet}, ${firstName(S.profile.ownerName)}`}),h("h1",{text:title})),
+    h("div",{class:"row"},h("button",{class:"btn primary",type:"button",disabled:!c.openAll||S.busy||liveOff,onclick:runAll,text:S.runAll?"Agent is working...":`Run agent on ${c.openAll} open`}),S.busy?h("button",{class:"btn",type:"button",onclick:()=>ctl?.abort(),text:"Stop"}):null)));
+  if(S.runAll) out.push(h("div",{class:"card pad"},h("div",{class:"row",style:"justify-content:space-between"},h("b",{text:`Working through ${S.runAll.total} deliveries`}),h("span",{class:"fine",text:`${S.runAll.done} done · now: ${S.runAll.now||""}`})),h("div",{class:"progress"},h("i",{style:`width:${S.runAll.done/S.runAll.total*100}%`}))));
+  if(S.flash) out.push(h("p",{class:"note",text:S.flash}));
+  const k=h("div",{class:"kpis"});
+  for(const [l,v,lead] of [["Failed deliveries",c.all,true],["Re-attempts booked",c.rebooked],["Addresses fixed",c.fixed],["Fake attempts flagged",c.fake],["Returns accepted",c.return],["Need you",c.human]]) k.append(h("div",{class:"card kpi"+(lead?" lead":"")},h("div",{class:"v",text:String(v)}),h("div",{class:"l",text:l})));
+  out.push(k);
+  const left=h("div",{class:"card pad"});
+  left.append(h("div",{class:"sect",text:"Where tonight's parcels stand"}));
+  left.append(h("div",null,h("div",{class:"bigv",text:rs(c.value)}),h("p",{class:"fine",text:"of orders rebooked instead of heading back to your warehouse"})));
+  const parts=[["Re-attempt booked",c.rebooked,"var(--good)"],["Return accepted",c.return,"var(--bad)"],["Needs you",c.human,"var(--warn)"],["In progress",c.talking+c.awaiting_payment,"var(--info)"],["Not contacted",c.open,"var(--surface-2)"]];
+  const st=h("div",{class:"stack",role:"img","aria-label":parts.map(p=>`${p[0]} ${p[1]}`).join(", ")});
+  for(const [,v,col] of parts) if(v) st.append(h("i",{style:`width:${v/Math.max(1,c.all)*100}%;background:${col}`}));
+  left.append(st, h("div",{class:"legend"},parts.map(([l,v,col])=>h("span",{style:`--c:${col}`,text:`${l} ${v}`}))));
+  left.append(h("div",{class:"sect",text:"Morning note"}));
+  for(const t of summaryLines(c)) left.append(h("p",{style:"max-width:68ch",text:t}));
+  const right=h("div",{style:"display:flex;flex-direction:column;gap:16px"});
+  const needs=shipments().list.filter(s=>stOf(s.st)==="human");
+  const nb=h("div",{class:"card pad"},h("div",{class:"sect",text:"Needs you"}));
+  if(!needs.length) nb.append(h("p",{class:"fine",text:"Nothing right now. Cases the agent can't handle land here."}));
+  else { const l=h("div",{class:"needs"}); for(const s of needs) l.append(h("button",{type:"button",onclick:()=>{S.page="cases";S.sel=s.id;S.filter="all";S.mDetail=true;render();window.scrollTo(0,0);}},h("span",null,h("b",{text:s.order.customer_name})," · "+s.order.item),h("span",{class:"fine",text:(s.st.handoffReason||"").slice(0,48)}))); nb.append(l); }
+  right.append(nb);
+  const acts=[]; for(const s of shipments().list){ for(const a of (s.st&&s.st.calls)||[]) acts.push({...a,who:s.order.customer_name}); }
+  acts.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+  const fb=h("div",{class:"card pad"},h("div",{class:"sect",text:"Agent activity"}));
+  if(!acts.length) fb.append(h("p",{class:"fine",text:"Once the agent starts, every action it sends to your courier shows here."}));
+  else { const l=h("div",{class:"feedlist"}); for(const a of acts.slice(0,10)) l.append(h("div",{class:"fi"},h("time",{text:istTime(a.t)}),h("span",null,h("b",{text:a.label||a.body.action||a.path}),` · ${a.who}`))); fb.append(l); }
+  right.append(fb);
+  out.push(h("div",{class:"two"},left,right));
+  return out;
+}
+function summaryLines(c){
+  if(!c.all) return ["Upload your failed-delivery report from Data sources to get started."];
+  const L=[]; const touched=shipments().list.filter(s=>s.st&&s.st.chat&&s.st.chat.length).length;
+  L.push(`Your courier couldn't deliver ${c.all} parcels. The agent has reached ${touched} of the buyers so far.`);
+  if(c.rebooked) L.push(`${c.rebooked} re-attempt${c.rebooked>1?"s are":" is"} booked with the courier, with the buyer's preferred day and any instructions for the rider.`);
+  if(c.fixed) L.push(`${c.fixed} incomplete address${c.fixed>1?"es were":" was"} fixed with the buyer and sent to the courier.`);
+  if(c.fake) L.push(`${c.fake} buyer${c.fake>1?"s":""} said nobody came to the door. Those are flagged as likely fake attempts, worth raising with your courier account manager.`);
+  if(c.paid) L.push(`${c.paid} buyer${c.paid>1?"s":""} switched from cash to UPI, so there's no cash to collect at the door.`);
+  if(c.return) L.push(`${c.return} buyer${c.return>1?"s":""} no longer want${c.return>1?"":"s"} the order. The agent accepted the return instead of paying for more attempts.`);
+  if(c.human) L.push(`${c.human} need${c.human>1?"":"s"} you today. They're listed on the right.`);
+  if(c.openAll-c.human>0) L.push(`${c.openAll-c.human} still open. Run the agent to finish them.`);
+  return L;
+}
+
+/* ---------- cases ---------- */
+function pageCases(){
+  const out=[]; const all=shipments().list;
+  out.push(h("div",{class:"phead"},h("div",null,h("h1",{text:"Failed deliveries"}),h("p",{text:"Each one is a buyer the agent can talk to. Open a case to see the conversation and what was sent to your courier."})),
+    h("div",{class:"row"},h("button",{class:"btn primary",type:"button",disabled:S.busy||liveOff||!all.some(s=>!DONE.includes(stOf(s.st))),onclick:runAll,text:S.runAll?"Agent is working...":"Run agent on all open"}),S.busy?h("button",{class:"btn",type:"button",onclick:()=>ctl?.abort(),text:"Stop"}):null)));
+  if(S.runAll) out.push(h("div",{class:"card pad"},h("div",{class:"row",style:"justify-content:space-between"},h("b",{text:`Working through ${S.runAll.total} deliveries`}),h("span",{class:"fine",text:`${S.runAll.done} done · now: ${S.runAll.now||""}`})),h("div",{class:"progress"},h("i",{style:`width:${S.runAll.done/S.runAll.total*100}%`}))));
+  if(S.flash) out.push(h("p",{class:(/n't|not|failed|full/i.test(S.flash)?"note err":"note"),text:S.flash}));
+  if(!all.length){ out.push(h("div",{class:"card pad"},h("p",{text:"No failed deliveries yet."}),h("button",{class:"btn dark",type:"button",onclick:()=>{S.page="data";render();},text:"Upload your report"}))); return out; }
+  const q=S.q.trim().toLowerCase();
+  const fil={open:s=>!DONE.includes(stOf(s.st)),human:s=>stOf(s.st)==="human",done:s=>["rebooked","return"].includes(stOf(s.st)),all:()=>true};
+  const list=all.filter(fil[S.filter]).filter(s=>!q||[s.order.customer_name,s.order.item,s.order.city,s.ndr.awb,s.order.order_id].join(" ").toLowerCase().includes(q));
+  if(!S.sel||!all.find(s=>s.id===S.sel)) S.sel=(list[0]||all[0]).id;
+  const lb=h("div",{class:"card listbox"});
+  const fl=h("div",{class:"filters"});
+  const cnt={open:all.filter(fil.open).length,human:all.filter(fil.human).length,done:all.filter(fil.done).length,all:all.length};
+  for(const [k,l] of [["open","Open"],["human","Needs you"],["done","Resolved"],["all","All"]]) fl.append(h("button",{type:"button","aria-pressed":String(S.filter===k),onclick:()=>{S.filter=k;render();},text:`${l} ${cnt[k]}`}));
+  lb.append(fl);
+  const si=h("input",{type:"search",id:"case-q",placeholder:"Search buyer, item, city, AWB",value:S.q,"aria-label":"Search cases"});
+  si.addEventListener("input",e=>{S.q=e.target.value; const pos=e.target.selectionStart; render(); const n=$("case-q"); if(n){n.focus(); try{n.setSelectionRange(pos,pos);}catch(_){}}});
+  lb.append(h("div",{class:"search",style:"padding-top:12px"},si));
+  const rows=h("div",{class:"rows"});
+  if(!list.length) rows.append(h("p",{class:"fine",style:"padding:14px",text:"Nothing here."}));
+  for(const s of list){
+    const flags=h("div",{class:"fl"});
+    if(s.st&&s.st.addressFixed) flags.append(h("span",{class:"tag",text:"Address fixed"}));
+    if(s.st&&s.st.fake) flags.append(h("span",{class:"tag bad",text:"Fake attempt"}));
+    if(s.st&&s.st.paid) flags.append(h("span",{class:"tag",text:"Paid by UPI"}));
+    if(s.st&&s.st.reattempt) flags.append(h("span",{class:"tag",text:"Re-attempt "+s.st.reattempt}));
+    rows.append(h("button",{class:"crow",type:"button","aria-current":String(s.id===S.sel),onclick:()=>{if(S.busy&&S.runAll)return;S.sel=s.id;S.mDetail=true;render();window.scrollTo(0,0);}},
+      h("div",{class:"t"},h("span",{class:"n",text:`${s.order.customer_name}, ${s.order.city}`}),statusChip(s.st)),
+      h("div",{class:"d",text:`${s.order.item} · ${rs(s.order.amount)} · ${s.order.payment}`}),
+      h("div",{class:"r",text:`${s.ndr.reason}${Number(s.ndr.attempt)>1?` · attempt ${s.ndr.attempt}`:""}`}),
+      flags.childNodes.length?flags:null));
+  }
+  lb.append(rows);
+  out.push(h("div",{class:"cases"+(S.mDetail?" m-detail":"")},lb,caseDetail(all.find(s=>s.id===S.sel))));
+  return out;
+}
+function caseDetail(s){
+  const st=s.st, status=stOf(st), o=s.order;
+  const d=h("div",{class:"card detail"});
+  const meta=h("div",{class:"meta"},h("b",{text:o.customer_name})," · ",o.order_id," · ",o.payment," · ",(o.language||"Hindi")+" speaker",h("br"),(st&&st.addressFixed?"New address: ":"Address: ")+addrOf(s));
+  d.append(h("div",{class:"dhead"},
+    h("button",{class:"btn sm mback",type:"button",onclick:()=>{S.mDetail=false;render();window.scrollTo(0,0);},text:"‹ All deliveries"}),
+    h("div",null,h("h2",{text:o.item+(o.size&&o.size!=="-"?` (${o.size})`:"")}),meta),
+    h("div",{style:"display:flex;flex-direction:column;align-items:flex-end;gap:6px"},h("div",{class:"amt",text:rs(o.amount)}),statusChip(st)),
+    h("div",{class:"courier"},h("span",null,"AWB ",h("b",{text:s.ndr.awb})),h("span",null,"Courier: ",h("b",{text:s.ndr.reason})),s.ndr.rider_remark?h("span",null,"Rider: ",h("b",{text:s.ndr.rider_remark})):null,s.ndr.attempt?h("span",{text:"Attempt "+s.ndr.attempt}):null,s.ndr.attempt_time?h("span",{text:"at "+s.ndr.attempt_time}):null)));
+  const conv=h("div",{class:"conv"});
+  conv.append(h("div",{class:"testbar",text:"Test mode: WhatsApp isn't connected yet, so you (or the AI) play the buyer. "+(AI_MODE==="scripted"?"Live AI is off on this deployment, so replies come from a sample script.":"The agent's side is real.")}));
+  const feed=h("div",{class:"feed",id:"feed","aria-live":"polite"});
+  const chat=(st&&st.chat)||[];
+  if(!chat.length&&S.typing!==s.id+":agent") feed.append(h("div",{class:"empty"},h("span",{text:`${S.profile.settings.agentName} hasn't contacted ${firstName(o.customer_name)} yet.`}),h("button",{class:"btn primary",type:"button",disabled:S.busy||liveOff,onclick:()=>run(sig=>agentTurn(s.id,sig)),text:"Start the agent"})));
+  for(const m of chat){
+    if(m.who==="sys"){feed.append(h("div",{class:"msg m-sys",text:m.text}));continue;}
+    if(m.who==="pay"){feed.append(h("button",{class:"btn primary",style:"align-self:flex-start",type:"button",disabled:st.paid||S.busy,onclick:()=>payNow(s.id),text:st.paid?"Paid ✓":`Buyer taps: Pay ${rs(o.amount)} by UPI`}));continue;}
+    feed.append(h("div",{class:"msg "+(m.who==="agent"?"m-agent":"m-buyer")},h("span",{class:"w",text:m.who==="agent"?`${S.profile.settings.agentName} · ${m.call?"call":"WhatsApp"}`:`${firstName(o.customer_name)}${m.call?" · call":""}`}),m.text));
+  }
+  if(S.typing===s.id+":agent") feed.append(h("div",{class:"msg m-agent typing",text:`${S.profile.settings.agentName} is typing...`}));
+  if(S.typing===s.id+":buyer") feed.append(h("div",{class:"msg m-buyer typing",text:`${firstName(o.customer_name)} is typing...`}));
+  conv.append(feed);
+  const done=DONE.includes(status), started=chat.length>0;
+  const last=[...chat].reverse().find(m=>m.who==="agent"||m.who==="buyer");
+  const lastWho=last&&last.who;
+  const off=S.busy||liveOff;
+  const ctlb=h("div",{class:"ctl"});
+  const form=h("form",{class:"compose"},h("label",{for:"buyer-in",hidden:true,text:"Reply as the buyer"}),h("input",{id:"buyer-in",autocomplete:"off",placeholder:"Reply as the buyer...",disabled:off||!started||done||status==="awaiting_payment"}),h("button",{class:"btn dark",type:"submit",disabled:off||!started||done||status==="awaiting_payment",text:"Send"}));
+  form.addEventListener("submit",ev=>{ev.preventDefault();const v=$("buyer-in").value.trim();if(!v)return;const cs=caseOf(s.id);cs.chat.push({who:"buyer",text:v.slice(0,400),t:nowISO(),call:cs.channel==="call"});run(async sig=>{await agentTurn(s.id,sig);});});
+  ctlb.append(form);
+  ctlb.append(h("div",{class:"row"},
+    h("button",{class:"btn",type:"button",disabled:off||!started||done||lastWho!=="agent"||status==="awaiting_payment",onclick:()=>run(async sig=>{await buyerTurn(s.id,sig);if(!DONE.includes(stOf(S.cases[s.id])))await agentTurn(s.id,sig);}),text:"Let AI play the buyer"}),
+    S.profile.settings.voice?h("button",{class:"btn",type:"button",disabled:off||!started||done||(st&&st.channel==="call")||lastWho!=="agent",onclick:()=>run(sig=>toCall(s.id,sig)),text:`No reply: call after ${S.profile.settings.voiceAfterHours}h`}):null,
+    h("button",{class:"btn ghost",type:"button",disabled:S.busy||!started,onclick:()=>resetCase(s.id),text:"Reset case"})));
+  if(S.caseNote) ctlb.append(h("p",{class:"note err",text:S.caseNote}));
+  conv.append(ctlb);
+  const acts=h("div",{class:"acts"},h("div",{class:"sect",text:"Sent to "+(S.profile.courier||"courier")}));
+  const calls=(st&&st.calls)||[];
+  if(!calls.length) acts.append(h("p",{class:"fine",text:"Re-attempts, address changes, returns and escalations the agent sends appear here, in the shape a courier API expects. Mock calls for now."}));
+  for(const a of [...calls].reverse()) acts.append(h("div",{class:"call"},h("div",{class:"h"},h("span",null,h("b",{text:a.method})," "+a.path),h("span",{text:istTime(a.t)})),h("pre",{text:JSON.stringify(a.body,null,1)}),h("pre",{class:"res",text:"→ 200 "+JSON.stringify(a.res)})));
+  d.append(h("div",{class:"dbody"},conv,acts));
+  setTimeout(()=>{const f=$("feed"); if(f) f.scrollTop=f.scrollHeight;},0);
+  return d;
+}
+
+/* ---------- agent ---------- */
+function dateContext(){
+  const days=[]; const base=new Date();
+  for(let i=0;i<=Math.max(1,S.profile.settings.maxDays);i++){ const d=new Date(base.getTime()+i*864e5); days.push((i===0?"Today ":i===1?"Tomorrow ":"")+d.toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"})+" ("+d.toLocaleDateString("en-IN",{timeZone:"Asia/Kolkata",weekday:"long"})+")"); }
+  return "Dates (India time): "+days.join("; ")+".";
+}
+function rules(){
+  const st=S.profile.settings;
+  return `You are ${st.agentName}, the delivery-help agent for ${st.signoff||S.profile.storeName}, an Indian online store. The courier (${S.profile.courier}) failed to deliver this buyer's parcel. You message the buyer (WhatsApp, or a phone call if noted) to get the parcel delivered, or to close it cleanly.
+
+${dateContext()}
+
+How to talk:
+- If the buyer's language is Hindi or Hinglish, write Hinglish in Roman script; otherwise English. Mirror the buyer.
+- Warm, short (under 35 words), one question at a time. "ji" politely in Hindi. First message: say who you are and which store, name the item, and say in plain words why today's delivery failed.
+
+What to sort out, as needed:
+- Do they still want it?${st.acceptReturns?" If not, accept the return politely without pushing.":" If not, hand off to the team (you may not accept returns yourself)."}
+${st.fixAddress?"- If the address looks incomplete, get a house or flat number and a landmark.":"- Do not change addresses; if the address is wrong, hand off to the team."}
+- A re-attempt date within the next ${st.maxDays} days, plus any instruction for the rider (call first, time window, deliver at shop).
+${st.offerUpi?"- If the order is cash on delivery and cash is the problem, you may offer paying by UPI now.":"- Do not offer online payment."}
+${st.flagFake?"- If the buyer says nobody came, nobody called, or they were home: apologise, flag it as a likely fake attempt, and still book a re-attempt.":""}
+- If the buyer is upset about damage, wants an exchange or refund, or asks for a person: hand off to the team.
+Never promise refunds, discounts, exact delivery times or anything about the courier beyond booking the attempt.
+
+Actions (zero or more per turn, in order):
+${st.fixAddress?'- {"type":"update_address","address":"<full new address>"}\n':''}${st.flagFake?'- {"type":"flag_fake_attempt","note":"<what the buyer said>"}\n':''}${st.offerUpi?'- {"type":"send_upi_link"}  (then stop and wait for payment)\n':''}- {"type":"reattempt","date":"YYYY-MM-DD","remarks":"<rider instruction or empty>"}  (final)
+${st.acceptReturns?'- {"type":"return","reason":"<short reason>"}  (final)\n':''}- {"type":"handoff","reason":"<short reason for the store owner>"}  (final)
+With a final action, your reply is the closing message.
+
+Reply with ONLY a JSON object: {"reply":"<message to the buyer>","actions":[ ... ]}`;
+}
+function ctxOf(s){const o=s.order,n=s.ndr,st=S.cases[s.id]||{};return `Order ${o.order_id}, AWB ${n.awb}
+Buyer: ${o.customer_name}, ${o.city}. Language: ${o.language||"Hindi"}. Past orders: ${o.past_orders||"unknown"}.
+Item: ${o.item}${o.size&&o.size!=="-"?` (size ${o.size})`:""}, ${rs(o.amount)}, ${/cod|cash/i.test(o.payment)&&!st.paid?"cash on delivery":"already paid"}
+Address on file: ${addrOf(s)}${st.addressFixed?" (already corrected)":""}
+Courier report: attempt ${n.attempt||1}, reason "${n.reason}"${n.rider_remark?`, rider remark "${n.rider_remark}"`:""}${n.attempt_time?` at ${n.attempt_time}`:""}.
+Channel now: ${st.channel==="call"?"phone call (no WhatsApp reply)":"WhatsApp"}`;}
+function transcript(st){return ((st&&st.chat)||[]).filter(m=>m.who==="agent"||m.who==="buyer").map(m=>(m.who==="agent"?"Agent: ":"Buyer: ")+m.text).join("\n")||"(nothing yet: write the first message)";}
+const findShip=id=>shipments().list.find(x=>x.id===id);
+function addCall(cs,method,path,body,res,label){cs.calls.push({method,path,body,res,t:nowISO(),label});}
+
+function applyActions(s,cs,actions){
+  const st=S.profile.settings; let final=false;
+  for(const a of Array.isArray(actions)?actions:[]){
+    if(!a||typeof a!=="object") continue; const t=String(a.type||"");
+    if(t==="update_address"&&a.address&&st.fixAddress){ cs.address=String(a.address).slice(0,200); cs.addressFixed=true; cs.chat.push({who:"sys",text:"Address updated with the courier"}); addCall(cs,"POST","/api/p/edit",{waybill:s.ndr.awb,add:cs.address},{status:"success"},"Address updated"); }
+    else if(t==="flag_fake_attempt"&&st.flagFake){ if(!cs.fake){cs.fake=true; cs.chat.push({who:"sys",text:"Flagged as a likely fake delivery attempt"}); addCall(cs,"POST","/escalations",{waybill:s.ndr.awb,type:"FAKE_ATTEMPT",buyer_said:String(a.note||"").slice(0,160)},{status:"logged"},"Fake attempt flagged");} }
+    else if(t==="send_upi_link"&&st.offerUpi&&/cod|cash/i.test(s.order.payment)&&!cs.paid){ cs.status="awaiting_payment"; cs.chat.push({who:"sys",text:"UPI payment link sent"}); cs.chat.push({who:"pay"}); addCall(cs,"POST","/payments/links",{order_id:s.order.order_id,amount:Number(s.order.amount),method:"UPI"},{status:"created",expires_in:"30 min"},"UPI link sent"); return false; }
+    else if(t==="reattempt"){ const date=/^\d{4}-\d{2}-\d{2}$/.test(String(a.date))?String(a.date):new Date(Date.now()+864e5).toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"}); cs.status="rebooked"; cs.reattempt=date; const body={waybill:s.ndr.awb,act:"RE-ATTEMPT",date}; if(a.remarks) body.remarks=String(a.remarks).slice(0,120); if(cs.paid) body.payment_mode="Prepaid"; addCall(cs,"POST","/api/p/update",body,{status:"success"},"Re-attempt booked"); cs.chat.push({who:"sys",text:"Re-attempt booked for "+date+(a.remarks?" · "+a.remarks:"")}); final=true; }
+    else if(t==="return"&&st.acceptReturns){ cs.status="return"; addCall(cs,"POST","/api/p/update",{waybill:s.ndr.awb,act:"RTO",reason:String(a.reason||"Buyer declined").slice(0,120)},{status:"success"},"Return accepted"); cs.chat.push({who:"sys",text:"Return accepted"+(a.reason?": "+a.reason:"")}); final=true; }
+    else if(t==="handoff"||(t==="return"&&!st.acceptReturns)){ cs.status="human"; cs.handoffReason=String(a.reason||"Needs a person").slice(0,160); addCall(cs,"POST","/api/p/update",{waybill:s.ndr.awb,act:"HOLD",remarks:"Store team will call buyer"},{status:"success"},"Held for your team"); cs.chat.push({who:"sys",text:"Passed to you: "+cs.handoffReason}); final=true; }
+  }
+  return final;
+}
+async function save(cs){ cs.updatedAt=nowISO(); try{ await store.saveCase(cs); }catch(e){ S.err=(e&&e.code==="quota_exceeded")?"Storage is full. Clear agent progress in Data sources.":"Couldn't save the latest change. It will retry with the next one."; } }
+async function agentTurn(id,signal){
+  if(!SAMPLE) throw {code:"not_declared"};
+  const s=findShip(id), cs=caseOf(id);
+  if(cs.status==="open") cs.status="talking";
+  S.typing=id+":agent"; render();
+  const out=await SAMPLE.json(`${rules()}\n\nThe order:\n${ctxOf(s)}\n\nConversation so far:\n${transcript(cs)}\n\nWrite the agent's next turn as the JSON object.`,{modelTier:"quick",cache:false,signal});
+  const reply=out&&typeof out.reply==="string"&&out.reply.trim()?out.reply.trim():null;
+  if(!reply) throw {code:"invalid_json"};
+  cs.chat.push({who:"agent",text:reply,t:nowISO(),call:cs.channel==="call"});
+  const fin=applyActions(s,cs,out.actions);
+  S.typing=null; await save(cs); render();
+  return fin;
+}
+async function buyerTurn(id,signal){
+  if(!SAMPLE) throw {code:"not_declared"};
+  const s=findShip(id), cs=caseOf(id);
+  S.typing=id+":buyer"; render();
+  const note=s.order.demo_buyer_note?`What you want: ${s.order.demo_buyer_note}.`:`Your parcel failed because: "${s.ndr.reason}". Behave like a typical Indian online shopper: most still want the parcel and pick a day; a few have a real problem.`;
+  const {text}=await SAMPLE(`You are role-playing ${s.order.customer_name}, a buyer in ${s.order.city}, replying ${cs.channel==="call"?"on a phone call":"on WhatsApp"} to a store whose courier failed to deliver your parcel.
+${note}
+You speak ${s.order.language||"Hindi"} (Hindi/Hinglish in Roman script).
+Your order: ${s.order.item}, ${rs(s.order.amount)}, ${/cod|cash/i.test(s.order.payment)?"cash on delivery":"prepaid"}. Address on file: ${addrOf(s)}.
+${dateContext()}
+
+Conversation so far:
+${transcript(cs)}
+
+Write ONLY your next reply: one short message, under 25 words, no quotes, no name prefix. Stay in character.`,{modelTier:"quick",cache:false,signal});
+  cs.chat.push({who:"buyer",text:text.trim().replace(/^(buyer|customer|[A-Z][a-z]+)\s*:\s*/,"").replace(/^"|"$/g,"").slice(0,400),t:nowISO(),call:cs.channel==="call"});
+  S.typing=null; await save(cs); render();
+}
+async function toCall(id,signal){
+  const s=findShip(id), cs=caseOf(id); cs.channel="call";
+  cs.chat.push({who:"sys",text:`No WhatsApp reply after ${S.profile.settings.voiceAfterHours} hours. ${S.profile.settings.agentName} calls in ${s.order.language||"Hindi"}.`});
+  addCall(cs,"POST","/voice/calls",{to:s.order.phone,language:(s.order.language||"hindi").toLowerCase(),purpose:"failed_delivery",waybill:s.ndr.awb},{status:"connected"},"Voice call placed");
+  return agentTurn(id,signal);
+}
+async function payNow(id){
+  const cs=caseOf(id); if(cs.paid||S.busy) return; const s=findShip(id);
+  cs.paid=true; cs.status="talking";
+  addCall(cs,"POST","/webhooks/payment",{order_id:s.order.order_id,amount:Number(s.order.amount),status:"captured"},{status:"ok"},"UPI payment received");
+  cs.chat.push({who:"sys",text:`Payment of ${rs(s.order.amount)} received. Order is now prepaid.`});
+  cs.chat.push({who:"buyer",text:"Paid. Please send it.",t:nowISO()});
+  await save(cs);
+  run(sig=>agentTurn(id,sig));
+}
+async function resetCase(id){ if(S.busy) return; delete S.cases[id]; try{await store.deleteCase(id);}catch(e){} S.caseNote=""; render(); }
+function explain(e){
+  const c=e&&e.code; if(c==="cancelled") return "";
+  if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(c)){liveOff=true;return "The agent needs permission to use Claude on your account. Reload the page and choose Allow.";}
+  if(c==="rate_limited") return "Too many messages at once. Wait a minute, then continue.";
+  if(c==="session_expired") return "Your Claude session ended. Sign in again, then continue.";
+  if(c==="invalid_json") return "The agent's reply came back garbled. Try again.";
+  if(c==="refused") return "The agent declined to answer that. Try rephrasing the buyer's reply.";
+  return "The connection dropped. Try again.";
+}
+async function run(task){
+  if(S.busy) return; S.busy=true; S.caseNote=""; ctl=new AbortController(); render();
+  try{ await task(ctl.signal); }catch(e){ const m=explain(e); if(m){ S.caseNote=m; S.flash=m; } }
+  finally{ S.busy=false; S.typing=null; ctl=null; render(); }
+}
+async function playOut(id,signal){
+  let cs=caseOf(id);
+  if(!cs.chat.length){ if(await agentTurn(id,signal)) return; }
+  for(let i=0;i<6;i++){
+    cs=caseOf(id);
+    if(DONE.includes(cs.status)) return;
+    if(cs.status==="awaiting_payment"){ const s=findShip(id); cs.paid=true; cs.status="talking"; addCall(cs,"POST","/webhooks/payment",{order_id:s.order.order_id,amount:Number(s.order.amount),status:"captured"},{status:"ok"},"UPI payment received"); cs.chat.push({who:"sys",text:`Payment of ${rs(s.order.amount)} received. Order is now prepaid.`}); cs.chat.push({who:"buyer",text:"Paid. Please send it.",t:nowISO()}); await save(cs); if(await agentTurn(id,signal)) return; continue; }
+    await buyerTurn(id,signal);
+    if(await agentTurn(id,signal)) return;
+  }
+}
+function runAll(){
+  const open=shipments().list.filter(s=>!DONE.includes(stOf(s.st)));
+  if(!open.length) return;
+  S.runAll={total:open.length,done:0,now:""};
+  run(async sig=>{
+    for(const s of open){ S.runAll.now=s.order.customer_name; S.sel=s.id; render(); await playOut(s.id,sig); S.runAll.done++; render(); }
+    S.flash=`Done. ${open.length} deliveries worked through. Check Overview for the morning note.`;
+  }).finally(()=>{S.runAll=null;render();});
+}
+
+/* ---------- settings ---------- */
+function pageSettings(){
+  const st={...DEFAULT_SETTINGS,...S.profile.settings};
+  const out=[h("div",{class:"phead"},h("div",null,h("h1",{text:"Agent settings"}),h("p",{text:"Decide what the agent is allowed to do on your behalf. Changes apply to its next message."})))];
+  if(S.flash) out.push(h("p",{class:"note ok",text:S.flash}));
+  const tg=(id,title,desc,val,dis)=>h("div",{class:"toggle"},h("div",{class:"tx"},h("b",{text:title}),h("span",{text:desc})),h("label",{class:"sw"},h("input",{type:"checkbox",id,checked:val,disabled:dis,"aria-label":title}),h("i")));
+  const who=h("div",{class:"card pad"},h("div",{class:"sect",text:"How it introduces itself"}),
+    h("div",{class:"grid2"},fld("s-name","Agent's name","text",st.agentName,true),fld("s-sign","Store name in messages","text",st.signoff||S.profile.storeName,true)),
+    h("div",{class:"sect",text:"Channels"}),
+    h("div",null,tg("s-wa","WhatsApp","First message goes on WhatsApp.",true,true),tg("s-voice","Voice call if no reply","The agent calls in the buyer's language, 9am to 9pm only.",st.voice)),
+    h("div",{class:"field"},h("label",{for:"s-after",text:"Call after (hours without a reply)"}),sel("s-after",["1","2","3","6","12"],String(st.voiceAfterHours))));
+  const can=h("div",{class:"card pad"},h("div",{class:"sect",text:"What it can do without asking you"}),
+    h("div",null,
+      tg("s-re","Book re-attempts","Always on. The whole point.",true,true),
+      tg("s-addr","Fix addresses","Collect a house number and landmark, and send it to the courier.",st.fixAddress),
+      tg("s-upi","Offer UPI for cash orders","When cash is the problem, send a payment link.",st.offerUpi),
+      tg("s-ret","Accept returns","If the buyer no longer wants it. Off means these come to you.",st.acceptReturns),
+      tg("s-fake","Flag fake attempts","When a buyer says nobody came, raise it with the courier.",st.flagFake)),
+    h("div",{class:"field"},h("label",{for:"s-days",text:"Latest re-attempt it can book"}),sel("s-days",["2","3","4","5","6","7"].map(x=>x),String(st.maxDays)),h("span",{class:"hint",text:"Days from today. Anything later comes to you."})));
+  out.push(h("div",{class:"setgrid"},who,can));
+  out.push(h("div",{class:"row"},h("button",{class:"btn primary",type:"button",onclick:saveSettings,text:"Save settings"})));
+  return out;
+}
+async function saveSettings(){
+  const st={...S.profile.settings,agentName:$("s-name").value.trim()||"Asha",signoff:$("s-sign").value.trim()||S.profile.storeName,voice:$("s-voice").checked,voiceAfterHours:Number($("s-after").value),fixAddress:$("s-addr").checked,offerUpi:$("s-upi").checked,acceptReturns:$("s-ret").checked,flagFake:$("s-fake").checked,maxDays:Number($("s-days").value)};
+  const p={...S.profile,settings:st,updatedAt:nowISO()};
+  try{ await store.saveProfile(p); S.profile=p; S.flash="Saved. The agent will follow these from its next message."; }catch(e){ S.err="Couldn't save settings. Try again."; }
+  render();
+}
+
+/* ---------- data ---------- */
+function pageData(){
+  const out=[h("div",{class:"phead"},h("div",null,h("h1",{text:"Data sources"}),h("p",{text:"Where your failed deliveries come from. Upload fresh files each evening, or connect your courier when live sync opens."})))];
+  if(S.flash) out.push(h("p",{class:/n't|full/.test(S.flash)?"note err":"note ok",text:S.flash}));
+  const sh=shipments();
+  const files={}; for(const u of S.uploads){ const k=u.kind; if(!files[k]||u.uploadedAt>files[k].uploadedAt) files[k]=u; }
+  const fcard=(kind,title,ic)=>{ const f=files[kind]; return h("div",{class:"card src"},
+    h("div",{class:"top"},h("div",{class:"row"},h("div",{class:"ic",text:ic}),h("div",null,h("b",{text:title}),h("div",{class:"fine",text:"CSV upload"}))),h("span",{class:"chip dot c-rebooked",text:f?"Connected":"Empty"})),
+    f?h("div",null,h("div",{style:"font-weight:600",text:f.name}),h("div",{class:"fine",text:`${f.count} rows · uploaded ${ist(f.uploadedAt)}`})):h("p",{class:"fine",text:"Nothing uploaded yet."})); };
+  out.push(h("div",{class:"srcs"},fcard("orders","Orders","O"),fcard("ndr","Failed-delivery report","F"),liveCard()));
+  out.push(h("p",{class:"fine",text:`${sh.list.length} failed deliveries matched to orders${sh.unmatched?`, ${sh.unmatched} without a matching order`:""}.`}));
+  out.push(h("div",{class:"card pad"},h("div",{class:"sect",text:"Upload new files"}),h("p",{class:"fine",text:"New files replace the old ones. Conversations the agent already had are kept for matching AWB numbers."}),uploadPanel(true)));
+  const clr=h("div",{class:"card pad"},h("div",{class:"sect",text:"Start fresh"}),h("p",{class:"fine",text:"Clear every conversation and courier action so the agent starts over on the current files. Your uploads stay."}));
+  if(!S.confirmClear) clr.append(h("div",null,h("button",{class:"btn",type:"button",disabled:S.busy||!Object.keys(S.cases).length,onclick:()=>{S.confirmClear=true;render();},text:"Clear agent progress"})));
+  else clr.append(h("div",{class:"row"},h("span",{text:`Clear ${Object.keys(S.cases).length} conversations? This can't be undone.`}),h("button",{class:"btn dark",type:"button",onclick:clearProgress,text:"Yes, clear them"}),h("button",{class:"btn ghost",type:"button",onclick:()=>{S.confirmClear=false;render();},text:"Cancel"})));
+  out.push(clr);
+  return out;
+}
+async function clearProgress(){
+  S.busy=true; render();
+  try{ for(const id of Object.keys(S.cases)){ await store.deleteCase(id); } S.cases={}; S.flash="Cleared. The agent will start fresh."; }catch(e){ S.flash="Couldn't clear everything. Try again."; }
+  S.busy=false; S.confirmClear=false; render();
+}
+
+boot();
+</script>
+
+</body>
+</html>

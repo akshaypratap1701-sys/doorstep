@@ -1,0 +1,7 @@
+{
+  "name": "doorstep",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Doorstep: an AI agent that resolves failed deliveries with buyers."
+}
